@@ -156,6 +156,7 @@ u8t hexDigitConverter(char s);
 // file 
 void write_file(StringBuilder *sb, char *path);
 StringBuilder* read_file(Arena_header*ah,char*path);
+StringBuilder* read_file_no_error(Arena_header*ah,char*path);
 
 // structure and data types
 StringBuilder* sb_alloc(Arena_header* arenah);

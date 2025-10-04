@@ -25,6 +25,7 @@ void lxer_start_lexing(lxer_head* lh, char * source){
 				case TAG_SEP_END:
 				case TAG_BRK_END:
 				case TAG_STATEMENT_END:
+				case TAG_MISC_END:
 					ignore_lex = true;
 					break;
 				default:
@@ -56,7 +57,6 @@ void lxer_start_lexing(lxer_head* lh, char * source){
 						case LXR_DOUBLE_TYPE:
 						case LXR_FLOAT_TYPE:
 						case LXR_CHAR_TYPE:
-						case LXR_POINTER_TYPE:
 						case LXR_VOID_TYPE:
 							if(isolated){
 								cache_mem[array_tracker].token = token;
@@ -167,7 +167,12 @@ bool lxer_is_statement(LXR_TOKENS token){
 }
 
 bool lxer_is_misc(LXR_TOKENS token){
-	if(token < TOKEN_TABLE_END && token > TAG_STATEMENT_END) return true;
+	if(token < TAG_MISC_END && token > TAG_STATEMENT_END) return true;
+	return false;
+}
+
+bool lxer_is_pp(LXR_TOKENS token){
+	if(token < TOKEN_TABLE_END && token > TAG_MISC_END) return true;
 	return false;
 }
 

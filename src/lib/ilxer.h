@@ -32,7 +32,6 @@
 	X(LXR_DOUBLE_TYPE)\
 	X(LXR_FLOAT_TYPE)\
 	X(LXR_CHAR_TYPE)\
-	X(LXR_POINTER_TYPE)\
 	X(LXR_VOID_TYPE)
 
 
@@ -56,14 +55,25 @@
 #define TAG_STATEMENT()\
 	X(LXR_IF_STATEMENT)\
 	X(LXR_WHILE_STATEMENT)\
+	X(LXR_SWITCH_STATEMENT)\
+	X(LXR_DO_STATEMENT)\
+	X(LXR_FOR_STATEMENT)\
 	X(LXR_RET_STATEMENT)\
 	X(LXR_ASSIGNMENT)\
 
 #define TAG_MISC()\
 	X(LXR_CONST_DECLARATION)\
 	X(LXR_VAR_DECLARATION)\
-	X(LXR_FN_DECLARATION)\
+	X(LXR_ENUM_DECLARATION)\
+	X(LXR_STRUCT_DECLARATION)\
 	X(INVALID_POINTER)
+
+#define TAG_PP()\
+	X(LXR_DEFINE)\
+	X(LXR_UNDEF)\
+	X(LXR_MACRO_OPEN)\
+	X(LXR_MACRO_CLOSE)
+
 // Token organization table: this is used to generate the token enumerator and the token array. This architecture define the structure and the sepatration between tokens of different kinds
 
 #define TOKEN_DISPOSE()\
@@ -80,6 +90,8 @@
 	TAG_STATEMENT()\
 	TAG_STATEMENT_END,\
 	TAG_MISC()\
+	TAG_MISC_END,\
+	TAG_PP()\
 	TOKEN_TABLE_END,\
 	NOT_A_TOKEN
 
@@ -145,19 +157,18 @@ static char* token_table_lh[] = {
 
 
 	// comment 
-	[LXR_LINE_COMMENT] = "",
-	[LXR_OPEN_COMMENT] = "",
-	[LXR_CLOSE_COMMENT] = "",
+	[LXR_LINE_COMMENT] = "//",
+	[LXR_OPEN_COMMENT] = "/*",
+	[LXR_CLOSE_COMMENT] = "*/",
 
 
 	// type 
-	[LXR_STRING_TYPE] = "",
-	[LXR_INT_TYPE] = "",
-	[LXR_DOUBLE_TYPE] = "",
-	[LXR_FLOAT_TYPE] = "",
-	[LXR_CHAR_TYPE] = "",
-	[LXR_POINTER_TYPE] = "",
-	[LXR_VOID_TYPE] = "",
+	[LXR_STRING_TYPE] = "str",
+	[LXR_INT_TYPE] = "int",
+	[LXR_DOUBLE_TYPE] = "double",
+	[LXR_FLOAT_TYPE] = "float",
+	[LXR_CHAR_TYPE] = "char",
+	[LXR_VOID_TYPE] = "void",
 
 
 	// sep 
@@ -179,18 +190,30 @@ static char* token_table_lh[] = {
 
 
 	// statement 
-	[LXR_IF_STATEMENT] = "",
-	[LXR_WHILE_STATEMENT] = "",
-	[LXR_RET_STATEMENT] = "",
+	[LXR_IF_STATEMENT] = "if",
+	[LXR_WHILE_STATEMENT] = "while",
+	[LXR_SWITCH_STATEMENT] = "switch",
+	[LXR_DO_STATEMENT] = "do",
+	[LXR_FOR_STATEMENT] = "for",
+	[LXR_RET_STATEMENT] = "return",
 	[LXR_ASSIGNMENT] = "=",
 
 
 	// misc
 	[LXR_CONST_DECLARATION] = "const",
 	[LXR_VAR_DECLARATION] = "var",
-	[LXR_FN_DECLARATION] = "fn",
+	[LXR_ENUM_DECLARATION] = "enum",
+	[LXR_STRUCT_DECLARATION] = "enum",
+	[INVALID_POINTER] = "NULL",
+
+	// pre processor
+	[LXR_DEFINE] = "#define",
+	[LXR_UNDEF] = "#undef",
+	[LXR_MACRO_OPEN] = "#macro",
+	[LXR_MACRO_CLOSE] = "#endmacro",
+
+	// ilxer related tag
 	[NOT_A_TOKEN] = "NOT_A_TOKEN",
-	[INVALID_POINTER] = "INVALID_POINTER"
 };
 
 // length of the defined token table

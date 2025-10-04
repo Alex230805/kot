@@ -50,6 +50,29 @@ StringBuilder* read_file(Arena_header* ah, char*path){
   return sb;
 }
 
+StringBuilder* read_file_no_error(Arena_header* ah, char*path){
+  if(DEBUG) DINFO("Reading file", NULL); 
+  StringBuilder *sb; 
+  sb = (StringBuilder*)arena_alloc(ah,sizeof(StringBuilder));
+  FILE * fp;
+  fp = fopen(path, "r");
+  if(fp == NULL){
+	sb->string = NULL;
+	return sb;	
+  }
+  fseek(fp, 0, SEEK_END);
+  sb->len = ftell(fp);
+  rewind(fp);
+  sb->string = (char*)arena_alloc(ah,sizeof(char)*sb->len);
+  sb->size = sb->len;
+  fread(sb->string, sizeof(char), sb->len,fp);
+  sb->string[sb->len] = '\0';
+  fclose(fp);
+  return sb;
+}
+
+
+
 void write_file(StringBuilder *sb, char *path){
   if(DEBUG) DINFO("Writing file", NULL); 
   FILE * fp;
@@ -225,27 +248,24 @@ void error_print_error(error_handler *eh, const print_set pp){
 		if(pp.pretty_color) fprintf(stderr, "\e[31;49m");
 		error_slice * es = eh->error_array[i];
 		
-		if(pp.error_prefix) fprintf(stderr,"[ERROR]:");
+		if(pp.error_prefix) fprintf(stderr,"[ERROR]: ");
 		if(pp.include_error_code){
-			fprintf(stderr," return status %d", es->error_code);
+			fprintf(stderr,"return status %d", es->error_code);
 		}
 		if(pp.include_error_line){
-			fprintf(stderr, " in line %d", es->line);
+			fprintf(stderr, "in line %d", es->line);
 		}
 
 		if(	pp.include_error_code == true ||\
 			pp.include_error_line == true ||\
 			pp.pretty_indentation == true ||\
-			pp.pretty_color == true ||\
 			pp.include_reference_line == true ||\
 			pp.include_reference_decoration == true){
-			fprintf(stderr, ": ");
+			fprintf(stderr, ", ");
 		}
 		
-		fprintf(stderr, "%s", es->error);
-		
-		
-		if(pp.include_reference_line){
+		if(es->error != NULL) fprintf(stderr, "%s", es->error);	
+		if(pp.include_reference_line && es->source_ptr != NULL){
 			buffer = (char*)arena_alloc(&eh->ah,sizeof(char)*es->source_line_len);
 			memcpy(buffer, es->source_ptr, es->source_line_len+1);
 			buffer[es->source_line_len+1] = '\0';		
