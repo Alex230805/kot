@@ -17,8 +17,7 @@
 	X(LXR_MLT_SYMB)\
 	X(LXR_DIV_SYMB)\
 	X(LXR_GRT_SYBM)\
-	X(LXR_LST_SYBM)\
-	X(LXR_EQL_SYBM)
+	X(LXR_LST_SYBM)
 
 #define TAG_COMMENT()\
 	X(LXR_LINE_COMMENT)\
@@ -146,21 +145,18 @@ typedef struct{
 
 static char* token_table_lh[] = {
 
-	// math token 
+	// logic 
 	[LXR_SUM_SYMB] = "+",
 	[LXR_SUB_SYMB] = "-",
 	[LXR_MLT_SYMB] = "*",
 	[LXR_DIV_SYMB] = "/",
 	[LXR_GRT_SYBM] = ">",
 	[LXR_LST_SYBM] = "<",
-	[LXR_EQL_SYBM] = "==",
-
 
 	// comment 
-	[LXR_LINE_COMMENT] = "//",
-	[LXR_OPEN_COMMENT] = "/*",
-	[LXR_CLOSE_COMMENT] = "*/",
-
+	[LXR_LINE_COMMENT] = "",
+	[LXR_OPEN_COMMENT] = "",
+	[LXR_CLOSE_COMMENT] = "",
 
 	// type 
 	[LXR_STRING_TYPE] = "str",

@@ -102,7 +102,7 @@ void lxer_get_lxer_content(lxer_head*lh){
 
 bool lxer_next_token(lxer_head*lh){
 	lh->lxer_tracker+=1;
-	if(lh->lxer_tracker == lh->stream_out_len) {
+	if(lh->lxer_tracker >= lh->stream_out_len) {
 		return false;
 	}
 	return true;
@@ -110,7 +110,7 @@ bool lxer_next_token(lxer_head*lh){
 
 
 LXR_TOKENS lxer_get_current_token(lxer_head*lh){
-	if(lh->lxer_tracker == lh->stream_out_len) {
+	if(lh->lxer_tracker >= lh->stream_out_len) {
 		return TOKEN_TABLE_END;
 	}
 	return lh->stream_out[lh->lxer_tracker].token;
@@ -118,7 +118,7 @@ LXR_TOKENS lxer_get_current_token(lxer_head*lh){
 
 
 LXR_TOKENS lxer_get_next_token(lxer_head*lh){
-	if(lh->lxer_tracker+1 == lh->stream_out_len) {
+	if(lh->lxer_tracker+1 >= lh->stream_out_len) {
 		return TOKEN_TABLE_END;
 	}
 	return lh->stream_out[lh->lxer_tracker+1].token;
