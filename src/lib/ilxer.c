@@ -3,7 +3,7 @@
 #include "ilxer.h"
 
 
-void lxer_start_lexing(lxer_head* lh, char * source){
+void lxer_start_lexing(lxer_header* lh, char * source){
 	if(DEBUG) DINFO("Start lexing", NULL);
 	lh->source = source;
 	lh->source_len = strlen(source);
@@ -91,7 +91,7 @@ void lxer_start_lexing(lxer_head* lh, char * source){
 }
 
 
-void lxer_get_lxer_content(lxer_head*lh){
+void lxer_get_lxer_content(lxer_header*lh){
 	NOTY("LXER","Tokenzer output: ", NULL);
 	for(size_t i=0;i<lh->stream_out_len;i++){
 		LXR_TOKENS tok = lh->stream_out[i].token;
@@ -100,7 +100,7 @@ void lxer_get_lxer_content(lxer_head*lh){
 	}
 }
 
-bool lxer_next_token(lxer_head*lh){
+bool lxer_next_token(lxer_header*lh){
 	lh->lxer_tracker+=1;
 	if(lh->lxer_tracker >= lh->stream_out_len) {
 		return false;
@@ -109,7 +109,7 @@ bool lxer_next_token(lxer_head*lh){
 }
 
 
-LXR_TOKENS lxer_get_current_token(lxer_head*lh){
+LXR_TOKENS lxer_get_current_token(lxer_header*lh){
 	if(lh->lxer_tracker >= lh->stream_out_len) {
 		return TOKEN_TABLE_END;
 	}
@@ -117,14 +117,14 @@ LXR_TOKENS lxer_get_current_token(lxer_head*lh){
 }
 
 
-LXR_TOKENS lxer_get_next_token(lxer_head*lh){
+LXR_TOKENS lxer_get_next_token(lxer_header*lh){
 	if(lh->lxer_tracker+1 >= lh->stream_out_len) {
 		return TOKEN_TABLE_END;
 	}
 	return lh->stream_out[lh->lxer_tracker+1].token;
 }
 
-void lxer_set_new_target(lxer_head* lh, char* new_line){
+void lxer_set_new_target(lxer_header* lh, char* new_line){
 	for(size_t i=lh->lxer_tracker;i<lh->stream_out_len; i++){
 		if(lh->stream_out[i].byte_pointer > new_line){
 			lh->lxer_tracker = i;
@@ -134,7 +134,7 @@ void lxer_set_new_target(lxer_head* lh, char* new_line){
 }
 
 
-char* lxer_get_current_pointer(lxer_head*lh){
+char* lxer_get_current_pointer(lxer_header*lh){
 	return lh->stream_out[lh->lxer_tracker].byte_pointer;
 }
 
@@ -176,7 +176,7 @@ bool lxer_is_pp(LXR_TOKENS token){
 	return false;
 }
 
-bool lxer_math_expect_math(lxer_head*lh){
+bool lxer_math_expect_math(lxer_header*lh){
 	if( 
 			lxer_is_math(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_math(lh->stream_out[lh->lxer_tracker+1].token)
@@ -186,7 +186,7 @@ bool lxer_math_expect_math(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_math_expect_comment(lxer_head*lh){ 
+bool lxer_math_expect_comment(lxer_header*lh){ 
 	if( 
 			lxer_is_math(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_comment(lh->stream_out[lh->lxer_tracker+1].token)
@@ -196,7 +196,7 @@ bool lxer_math_expect_comment(lxer_head*lh){
 	return false;
 }
 
-bool lxer_math_expect_type(lxer_head*lh){
+bool lxer_math_expect_type(lxer_header*lh){
 	if( 
 			lxer_is_math(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_type(lh->stream_out[lh->lxer_tracker+1].token)
@@ -207,7 +207,7 @@ bool lxer_math_expect_type(lxer_head*lh){
 }
 
 
-bool lxer_math_expect_sep(lxer_head*lh){ 
+bool lxer_math_expect_sep(lxer_header*lh){ 
 	if( 
 			lxer_is_math(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_sep(lh->stream_out[lh->lxer_tracker+1].token)
@@ -217,7 +217,7 @@ bool lxer_math_expect_sep(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_math_expect_brk(lxer_head*lh){
+bool lxer_math_expect_brk(lxer_header*lh){
 	if( 
 			lxer_is_math(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_brk(lh->stream_out[lh->lxer_tracker+1].token)
@@ -227,7 +227,7 @@ bool lxer_math_expect_brk(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_math_expect_statement(lxer_head*lh){ 
+bool lxer_math_expect_statement(lxer_header*lh){ 
 	if( 
 			lxer_is_math(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_statement(lh->stream_out[lh->lxer_tracker+1].token)
@@ -237,7 +237,7 @@ bool lxer_math_expect_statement(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_math_expect_misc(lxer_head*lh){
+bool lxer_math_expect_misc(lxer_header*lh){
 	if( 
 			lxer_is_math(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_misc(lh->stream_out[lh->lxer_tracker+1].token)
@@ -247,7 +247,7 @@ bool lxer_math_expect_misc(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_comment_expect_math(lxer_head*lh){
+bool lxer_comment_expect_math(lxer_header*lh){
 	if( 
 			lxer_is_comment(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_math(lh->stream_out[lh->lxer_tracker+1].token)
@@ -257,7 +257,7 @@ bool lxer_comment_expect_math(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_comment_expect_comment(lxer_head*lh){
+bool lxer_comment_expect_comment(lxer_header*lh){
 	if( 
 			lxer_is_comment(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_comment(lh->stream_out[lh->lxer_tracker+1].token)
@@ -267,7 +267,7 @@ bool lxer_comment_expect_comment(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_comment_expect_type(lxer_head*lh){
+bool lxer_comment_expect_type(lxer_header*lh){
 	if( 
 			lxer_is_comment(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_type(lh->stream_out[lh->lxer_tracker+1].token)
@@ -277,7 +277,7 @@ bool lxer_comment_expect_type(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_comment_expect_sep(lxer_head*lh){
+bool lxer_comment_expect_sep(lxer_header*lh){
 	if( 
 			lxer_is_comment(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_sep(lh->stream_out[lh->lxer_tracker+1].token)
@@ -286,7 +286,7 @@ bool lxer_comment_expect_sep(lxer_head*lh){
 	} return false; 
 }
 
-bool lxer_comment_expect_brk(lxer_head*lh){
+bool lxer_comment_expect_brk(lxer_header*lh){
 	if( 
 			lxer_is_comment(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_brk(lh->stream_out[lh->lxer_tracker+1].token)
@@ -295,7 +295,7 @@ bool lxer_comment_expect_brk(lxer_head*lh){
 	} return false; 
 }
 
-bool lxer_comment_expect_statement(lxer_head*lh){
+bool lxer_comment_expect_statement(lxer_header*lh){
 	if( 
 			lxer_is_comment(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_statement(lh->stream_out[lh->lxer_tracker+1].token)
@@ -305,7 +305,7 @@ bool lxer_comment_expect_statement(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_comment_expect_misc(lxer_head*lh){
+bool lxer_comment_expect_misc(lxer_header*lh){
 	if( 
 			lxer_is_comment(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_misc(lh->stream_out[lh->lxer_tracker+1].token)
@@ -315,7 +315,7 @@ bool lxer_comment_expect_misc(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_type_expect_math(lxer_head*lh){
+bool lxer_type_expect_math(lxer_header*lh){
 	if( 
 			lxer_is_type(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_math(lh->stream_out[lh->lxer_tracker+1].token)
@@ -325,7 +325,7 @@ bool lxer_type_expect_math(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_type_expect_comment(lxer_head*lh){
+bool lxer_type_expect_comment(lxer_header*lh){
 	if( 
 			lxer_is_type(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_comment(lh->stream_out[lh->lxer_tracker+1].token)
@@ -335,7 +335,7 @@ bool lxer_type_expect_comment(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_type_expect_type(lxer_head*lh){
+bool lxer_type_expect_type(lxer_header*lh){
 	if( 
 			lxer_is_type(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_type(lh->stream_out[lh->lxer_tracker+1].token)
@@ -345,7 +345,7 @@ bool lxer_type_expect_type(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_type_expect_sep(lxer_head*lh){
+bool lxer_type_expect_sep(lxer_header*lh){
 	if( 
 			lxer_is_type(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_sep(lh->stream_out[lh->lxer_tracker+1].token)
@@ -355,7 +355,7 @@ bool lxer_type_expect_sep(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_type_expect_brk(lxer_head*lh){
+bool lxer_type_expect_brk(lxer_header*lh){
 	if( 
 			lxer_is_type(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_brk(lh->stream_out[lh->lxer_tracker+1].token)
@@ -364,7 +364,7 @@ bool lxer_type_expect_brk(lxer_head*lh){
 	}return false; 
 }
 
-bool lxer_type_expect_statement(lxer_head*lh){
+bool lxer_type_expect_statement(lxer_header*lh){
 	if( 
 			lxer_is_type(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_statement(lh->stream_out[lh->lxer_tracker+1].token)
@@ -373,7 +373,7 @@ bool lxer_type_expect_statement(lxer_head*lh){
 	}return false; 
 }
 
-bool lxer_type_expect_misc(lxer_head*lh){
+bool lxer_type_expect_misc(lxer_header*lh){
 	if( 
 			lxer_is_type(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_misc(lh->stream_out[lh->lxer_tracker+1].token)
@@ -383,7 +383,7 @@ bool lxer_type_expect_misc(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_sep_expect_math(lxer_head*lh){ 
+bool lxer_sep_expect_math(lxer_header*lh){ 
 	if( 
 			lxer_is_sep(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_math(lh->stream_out[lh->lxer_tracker+1].token)
@@ -394,7 +394,7 @@ bool lxer_sep_expect_math(lxer_head*lh){
 }
 
 
-bool lxer_sep_expect_comment(lxer_head*lh){
+bool lxer_sep_expect_comment(lxer_header*lh){
 	if( 
 			lxer_is_sep(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_comment(lh->stream_out[lh->lxer_tracker+1].token)
@@ -404,7 +404,7 @@ bool lxer_sep_expect_comment(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_sep_expect_type(lxer_head*lh){ 
+bool lxer_sep_expect_type(lxer_header*lh){ 
 	if( 
 			lxer_is_sep(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_type(lh->stream_out[lh->lxer_tracker+1].token)
@@ -413,7 +413,7 @@ bool lxer_sep_expect_type(lxer_head*lh){
 	}
 	return false; 
 }
-bool lxer_sep_expect_sep(lxer_head*lh){ 
+bool lxer_sep_expect_sep(lxer_header*lh){ 
 	if( 
 			lxer_is_sep(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_sep(lh->stream_out[lh->lxer_tracker+1].token)
@@ -424,7 +424,7 @@ bool lxer_sep_expect_sep(lxer_head*lh){
 }
 
 
-bool lxer_sep_expect_brk(lxer_head*lh){ 
+bool lxer_sep_expect_brk(lxer_header*lh){ 
 	if( 
 			lxer_is_sep(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_brk(lh->stream_out[lh->lxer_tracker+1].token)
@@ -435,7 +435,7 @@ bool lxer_sep_expect_brk(lxer_head*lh){
 }
 
 
-bool lxer_sep_expect_statement(lxer_head*lh){
+bool lxer_sep_expect_statement(lxer_header*lh){
 	if( 
 			lxer_is_sep(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_statement(lh->stream_out[lh->lxer_tracker+1].token)
@@ -445,7 +445,7 @@ bool lxer_sep_expect_statement(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_sep_expect_misc(lxer_head*lh){ 
+bool lxer_sep_expect_misc(lxer_header*lh){ 
 	if( 
 			lxer_is_sep(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_misc(lh->stream_out[lh->lxer_tracker+1].token)
@@ -457,7 +457,7 @@ bool lxer_sep_expect_misc(lxer_head*lh){
 
 
 
-bool lxer_brk_expect_math(lxer_head*lh){
+bool lxer_brk_expect_math(lxer_header*lh){
 	if( 
 			lxer_is_brk(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_math(lh->stream_out[lh->lxer_tracker+1].token)
@@ -468,7 +468,7 @@ bool lxer_brk_expect_math(lxer_head*lh){
 }
 
 
-bool lxer_brk_expect_comment(lxer_head*lh){ 
+bool lxer_brk_expect_comment(lxer_header*lh){ 
 	if( 
 			lxer_is_brk(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_comment(lh->stream_out[lh->lxer_tracker+1].token)
@@ -479,7 +479,7 @@ bool lxer_brk_expect_comment(lxer_head*lh){
 }
 
 
-bool lxer_brk_expect_type(lxer_head*lh){
+bool lxer_brk_expect_type(lxer_header*lh){
 	if( 
 			lxer_is_brk(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_type(lh->stream_out[lh->lxer_tracker+1].token)
@@ -490,7 +490,7 @@ bool lxer_brk_expect_type(lxer_head*lh){
 }
 
 
-bool lxer_brk_expect_sep(lxer_head*lh){
+bool lxer_brk_expect_sep(lxer_header*lh){
 	if( 
 			lxer_is_brk(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_sep(lh->stream_out[lh->lxer_tracker+1].token)
@@ -500,7 +500,7 @@ bool lxer_brk_expect_sep(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_brk_expect_brk(lxer_head*lh){ 
+bool lxer_brk_expect_brk(lxer_header*lh){ 
 	if( 
 			lxer_is_brk(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_brk(lh->stream_out[lh->lxer_tracker+1].token)
@@ -510,7 +510,7 @@ bool lxer_brk_expect_brk(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_brk_expect_statement(lxer_head*lh){
+bool lxer_brk_expect_statement(lxer_header*lh){
 	if( 
 			lxer_is_brk(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_statement(lh->stream_out[lh->lxer_tracker+1].token)
@@ -520,7 +520,7 @@ bool lxer_brk_expect_statement(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_brk_expect_misc(lxer_head*lh){ 
+bool lxer_brk_expect_misc(lxer_header*lh){ 
 	if( 
 			lxer_is_brk(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_misc(lh->stream_out[lh->lxer_tracker+1].token)
@@ -532,7 +532,7 @@ bool lxer_brk_expect_misc(lxer_head*lh){
 
 
 
-bool lxer_statement_expect_math(lxer_head*lh){
+bool lxer_statement_expect_math(lxer_header*lh){
 	if( 
 			lxer_is_statement(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_math(lh->stream_out[lh->lxer_tracker+1].token)
@@ -542,7 +542,7 @@ bool lxer_statement_expect_math(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_statement_expect_comment(lxer_head*lh){
+bool lxer_statement_expect_comment(lxer_header*lh){
 	if( 
 			lxer_is_statement(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_comment(lh->stream_out[lh->lxer_tracker+1].token)
@@ -552,7 +552,7 @@ bool lxer_statement_expect_comment(lxer_head*lh){
 	return false;
 }
 
-bool lxer_statement_expect_type(lxer_head*lh){
+bool lxer_statement_expect_type(lxer_header*lh){
 	if( 
 			lxer_is_statement(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_type(lh->stream_out[lh->lxer_tracker+1].token)
@@ -561,7 +561,7 @@ bool lxer_statement_expect_type(lxer_head*lh){
 	}
 	return false; 
 }
-bool lxer_statement_expect_sep(lxer_head*lh){
+bool lxer_statement_expect_sep(lxer_header*lh){
 	if( 
 			lxer_is_statement(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_sep(lh->stream_out[lh->lxer_tracker+1].token)
@@ -570,7 +570,7 @@ bool lxer_statement_expect_sep(lxer_head*lh){
 	}
 	return false; 
 }
-bool lxer_statement_expect_brk(lxer_head*lh){
+bool lxer_statement_expect_brk(lxer_header*lh){
 	if( 
 			lxer_is_statement(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_brk(lh->stream_out[lh->lxer_tracker+1].token)
@@ -579,7 +579,7 @@ bool lxer_statement_expect_brk(lxer_head*lh){
 	}
 	return false; 
 }
-bool lxer_statement_expect_statement(lxer_head*lh){
+bool lxer_statement_expect_statement(lxer_header*lh){
 	if( 
 			lxer_is_statement(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_statement(lh->stream_out[lh->lxer_tracker+1].token)
@@ -590,7 +590,7 @@ bool lxer_statement_expect_statement(lxer_head*lh){
 }
 
 
-bool lxer_statement_expect_misc(lxer_head*lh){ 
+bool lxer_statement_expect_misc(lxer_header*lh){ 
 	if( 
 			lxer_is_statement(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_misc(lh->stream_out[lh->lxer_tracker+1].token)
@@ -602,7 +602,7 @@ bool lxer_statement_expect_misc(lxer_head*lh){
 
 
 
-bool lxer_misc_expect_math(lxer_head*lh){ 
+bool lxer_misc_expect_math(lxer_header*lh){ 
 	if( 
 			lxer_is_misc(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_math(lh->stream_out[lh->lxer_tracker+1].token)
@@ -612,7 +612,7 @@ bool lxer_misc_expect_math(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_misc_expect_comment(lxer_head*lh){
+bool lxer_misc_expect_comment(lxer_header*lh){
 	if( 
 			lxer_is_misc(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_comment(lh->stream_out[lh->lxer_tracker+1].token)
@@ -622,7 +622,7 @@ bool lxer_misc_expect_comment(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_misc_expect_type(lxer_head*lh){ 
+bool lxer_misc_expect_type(lxer_header*lh){ 
 	if( 
 			lxer_is_misc(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_type(lh->stream_out[lh->lxer_tracker+1].token)
@@ -632,7 +632,7 @@ bool lxer_misc_expect_type(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_misc_expect_sep(lxer_head*lh){
+bool lxer_misc_expect_sep(lxer_header*lh){
 	if( 
 			lxer_is_misc(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_sep(lh->stream_out[lh->lxer_tracker+1].token)
@@ -642,7 +642,7 @@ bool lxer_misc_expect_sep(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_misc_expect_brk(lxer_head*lh){ 
+bool lxer_misc_expect_brk(lxer_header*lh){ 
 	if( 
 			lxer_is_misc(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_brk(lh->stream_out[lh->lxer_tracker+1].token)
@@ -652,7 +652,7 @@ bool lxer_misc_expect_brk(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_misc_expect_statement(lxer_head*lh){ 
+bool lxer_misc_expect_statement(lxer_header*lh){ 
 	if( 
 			lxer_is_misc(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_statement(lh->stream_out[lh->lxer_tracker+1].token)
@@ -662,7 +662,7 @@ bool lxer_misc_expect_statement(lxer_head*lh){
 	return false; 
 }
 
-bool lxer_misc_expect_misc(lxer_head*lh){ 
+bool lxer_misc_expect_misc(lxer_header*lh){ 
 	if( 
 			lxer_is_misc(lh->stream_out[lh->lxer_tracker].token) && 
 			lxer_is_misc(lh->stream_out[lh->lxer_tracker+1].token)
@@ -673,7 +673,7 @@ bool lxer_misc_expect_misc(lxer_head*lh){
 }
 
 
-char* lxer_get_rh(lxer_head* lh, bool reverse){
+char* lxer_get_rh(lxer_header* lh, bool reverse){
 	char* buffer = (char*)arena_alloc(&lh->lxer_ah, sizeof(char)*256);
 
 	size_t tracker = lh->lxer_tracker;
@@ -708,7 +708,7 @@ char* lxer_get_rh(lxer_head* lh, bool reverse){
 	if(strchr(buffer, ' ') != NULL) buffer[0] = '\0';
 	return buffer;
 }
-char** lxer_get_rh_lh(lxer_head*lh){
+char** lxer_get_rh_lh(lxer_header*lh){
 	char** buffer_array = (char**)arena_alloc(&lh->lxer_ah, sizeof(char*)*2);
 
 	buffer_array[0] = lxer_get_rh(lh, false); 

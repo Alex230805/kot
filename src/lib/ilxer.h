@@ -136,7 +136,7 @@ typedef struct{
 	token_slice* stream_out;
 	size_t       stream_out_len;
 	Arena_header lxer_ah;
-}lxer_head;
+}lxer_header;
 
 // some predefined tokens, those are here only for 
 // example, you can add or remove anything you want 
@@ -217,21 +217,21 @@ static size_t token_table_length = TOKEN_TABLE_END;
 
 
 // lexing functions
-void lxer_start_lexing(lxer_head* lh, char* source_file);
-void lxer_get_lxer_content(lxer_head*lh);
+void lxer_start_lexing(lxer_header* lh, char* source_file);
+void lxer_get_lxer_content(lxer_header*lh);
 
 // increment the local tracker by one to index the following token
-bool lxer_next_token(lxer_head*lh);
+bool lxer_next_token(lxer_header*lh);
 
-void lxer_set_new_target(lxer_head* lh, char* new_line);
+void lxer_set_new_target(lxer_header* lh, char* new_line);
 
 // get token associated with the current pointer
-LXR_TOKENS lxer_get_current_token(lxer_head*lh);
+LXR_TOKENS lxer_get_current_token(lxer_header*lh);
 // get token associated with the following pointer
-LXR_TOKENS lxer_get_next_token(lxer_head*lh);
+LXR_TOKENS lxer_get_next_token(lxer_header*lh);
 
 // get current pointer (char*) of a token from the source code 
-char* lxer_get_current_pointer(lxer_head*lh);
+char* lxer_get_current_pointer(lxer_header*lh);
 
 // lxer check functions: check if the token passed as parameter is math, comment, type, sep, brk, statement or misc
 bool lxer_is_math(LXR_TOKENS token);
@@ -245,63 +245,63 @@ bool lxer_is_misc(LXR_TOKENS token);
 
 
 // lxer expect functions, usefull to decide the parsing process based on the type of the following token
-bool lxer_math_expect_math(lxer_head*lh);
-bool lxer_math_expect_comment(lxer_head*lh);
-bool lxer_math_expect_type(lxer_head*lh);
-bool lxer_math_expect_sep(lxer_head*lh);
-bool lxer_math_expect_brk(lxer_head*lh);
-bool lxer_math_expect_statement(lxer_head*lh);
-bool lxer_math_expect_misc(lxer_head*lh);
+bool lxer_math_expect_math(lxer_header*lh);
+bool lxer_math_expect_comment(lxer_header*lh);
+bool lxer_math_expect_type(lxer_header*lh);
+bool lxer_math_expect_sep(lxer_header*lh);
+bool lxer_math_expect_brk(lxer_header*lh);
+bool lxer_math_expect_statement(lxer_header*lh);
+bool lxer_math_expect_misc(lxer_header*lh);
 
-bool lxer_comment_expect_math(lxer_head*lh);
-bool lxer_comment_expect_comment(lxer_head*lh);
-bool lxer_comment_expect_type(lxer_head*lh);
-bool lxer_comment_expect_sep(lxer_head*lh);
-bool lxer_comment_expect_brk(lxer_head*lh);
-bool lxer_comment_expect_statement(lxer_head*lh);
-bool lxer_comment_expect_misc(lxer_head*lh);
+bool lxer_comment_expect_math(lxer_header*lh);
+bool lxer_comment_expect_comment(lxer_header*lh);
+bool lxer_comment_expect_type(lxer_header*lh);
+bool lxer_comment_expect_sep(lxer_header*lh);
+bool lxer_comment_expect_brk(lxer_header*lh);
+bool lxer_comment_expect_statement(lxer_header*lh);
+bool lxer_comment_expect_misc(lxer_header*lh);
 
-bool lxer_type_expect_math(lxer_head*lh);
-bool lxer_type_expect_comment(lxer_head*lh);
-bool lxer_type_expect_type(lxer_head*lh);
-bool lxer_type_expect_sep(lxer_head*lh);
-bool lxer_type_expect_brk(lxer_head*lh);
-bool lxer_type_expect_statement(lxer_head*lh);
-bool lxer_type_expect_misc(lxer_head*lh);
+bool lxer_type_expect_math(lxer_header*lh);
+bool lxer_type_expect_comment(lxer_header*lh);
+bool lxer_type_expect_type(lxer_header*lh);
+bool lxer_type_expect_sep(lxer_header*lh);
+bool lxer_type_expect_brk(lxer_header*lh);
+bool lxer_type_expect_statement(lxer_header*lh);
+bool lxer_type_expect_misc(lxer_header*lh);
 
-bool lxer_sep_expect_math(lxer_head*lh);
-bool lxer_sep_expect_comment(lxer_head*lh);
-bool lxer_sep_expect_type(lxer_head*lh);
-bool lxer_sep_expect_sep(lxer_head*lh);
-bool lxer_sep_expect_brk(lxer_head*lh);
-bool lxer_sep_expect_statement(lxer_head*lh);
-bool lxer_sep_expect_misc(lxer_head*lh);
-
-
-bool lxer_brk_expect_math(lxer_head*lh);
-bool lxer_brk_expect_comment(lxer_head*lh);
-bool lxer_brk_expect_type(lxer_head*lh);
-bool lxer_brk_expect_sep(lxer_head*lh);
-bool lxer_brk_expect_brk(lxer_head*lh);
-bool lxer_brk_expect_statement(lxer_head*lh);
-bool lxer_brk_expect_misc(lxer_head*lh);
+bool lxer_sep_expect_math(lxer_header*lh);
+bool lxer_sep_expect_comment(lxer_header*lh);
+bool lxer_sep_expect_type(lxer_header*lh);
+bool lxer_sep_expect_sep(lxer_header*lh);
+bool lxer_sep_expect_brk(lxer_header*lh);
+bool lxer_sep_expect_statement(lxer_header*lh);
+bool lxer_sep_expect_misc(lxer_header*lh);
 
 
-bool lxer_statement_expect_math(lxer_head*lh);
-bool lxer_statement_expect_comment(lxer_head*lh);
-bool lxer_statement_expect_type(lxer_head*lh);
-bool lxer_statement_expect_sep(lxer_head*lh);
-bool lxer_statement_expect_brk(lxer_head*lh);
-bool lxer_statement_expect_statement(lxer_head*lh);
-bool lxer_statement_expect_misc(lxer_head*lh);
+bool lxer_brk_expect_math(lxer_header*lh);
+bool lxer_brk_expect_comment(lxer_header*lh);
+bool lxer_brk_expect_type(lxer_header*lh);
+bool lxer_brk_expect_sep(lxer_header*lh);
+bool lxer_brk_expect_brk(lxer_header*lh);
+bool lxer_brk_expect_statement(lxer_header*lh);
+bool lxer_brk_expect_misc(lxer_header*lh);
 
-bool lxer_misc_expect_math(lxer_head*lh);
-bool lxer_misc_expect_comment(lxer_head*lh);
-bool lxer_misc_expect_type(lxer_head*lh);
-bool lxer_misc_expect_sep(lxer_head*lh);
-bool lxer_misc_expect_brk(lxer_head*lh);
-bool lxer_misc_expect_statement(lxer_head*lh);
-bool lxer_misc_expect_misc(lxer_head*lh);
+
+bool lxer_statement_expect_math(lxer_header*lh);
+bool lxer_statement_expect_comment(lxer_header*lh);
+bool lxer_statement_expect_type(lxer_header*lh);
+bool lxer_statement_expect_sep(lxer_header*lh);
+bool lxer_statement_expect_brk(lxer_header*lh);
+bool lxer_statement_expect_statement(lxer_header*lh);
+bool lxer_statement_expect_misc(lxer_header*lh);
+
+bool lxer_misc_expect_math(lxer_header*lh);
+bool lxer_misc_expect_comment(lxer_header*lh);
+bool lxer_misc_expect_type(lxer_header*lh);
+bool lxer_misc_expect_sep(lxer_header*lh);
+bool lxer_misc_expect_brk(lxer_header*lh);
+bool lxer_misc_expect_statement(lxer_header*lh);
+bool lxer_misc_expect_misc(lxer_header*lh);
 
 
 // lxer get right hand, left hand or both functions, those are usefull to grep ONLY the 
@@ -318,8 +318,8 @@ bool lxer_misc_expect_misc(lxer_head*lh);
 //	pointer ( same behaviour apply to get both and get reverse )
 //
 //
-char*   lxer_get_rh(lxer_head*lh, bool reverse);
-char**  lxer_get_rh_lh(lxer_head*lh);
+char*   lxer_get_rh(lxer_header*lh, bool reverse);
+char**  lxer_get_rh_lh(lxer_header*lh);
 
 
 #ifndef ILXER_IMPLEMENTATION
