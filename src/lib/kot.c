@@ -19,10 +19,15 @@ void kot_init_vm(Arena_header*ah){
 int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh){
 	//lxer_get_lxer_content(lh);
 	LXR_TOKENS token; 
+	LXR_TOKENS next_token; 
 	LXR_TOKENS type;
 	int status = 0; 
+	bool fn_scope_open = false;
+	bool string_lit = false;
 	do{
 		token = lxer_get_current_token(lh);
+		next_token = lxer_get_next_token(lh);
+		printf("reading current token: '%s'\n", token_table_lh[token]);
 		if(token != TOKEN_TABLE_END) status = 1;
 		
 		if(lxer_is_type(token)){
@@ -32,26 +37,24 @@ int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh){
 				status = 1;
 				goto ret;
 			}
-
 			type = token;
-			lxer_next_token(lh);
-			token = lxer_get_current_token(lh);
-			if(token == LXR_OPEN_BRK){
-				printf("Function definition detected\n");
-
-			}else if(token == LXR_ASSIGNMENT){
+			if(next_token == LXR_ASSIGNMENT){
 				printf("variable definition detected: '%s'\n", buffer);
-			}else if(token == LXR_SEMICOLON){
+
+			}else if(next_token == LXR_SEMICOLON){
 				//printf("variable declaration detected: '%s'\n", buffer);
-				kot_push_instruction(ah, IR_PUSH, buffer, 0, 0);
+				kot_push_instruction(ah, IR_PUSH, buffer, 0, 0, 0, false);
+			}else if(lxer_is_brk(next_token)){
+				fn_scope_open = true;
 			}else{
 				error_push_error(eh, "syntax error, incomplete phrase", 0, 1,NULL,0);
 				status = 1;
 			}
-		
-		}else{
-			error_push_error(eh, "syntax error", 0, 1,NULL,0);
-			status = 1;
+		}else if(lxer_is_brk(token)){
+			if(fn_scope_open){
+			
+			
+			}
 		}
 	}while(lxer_next_token(lh));
 ret:
@@ -66,9 +69,10 @@ void kot_get_bytecode(){
 		if(kotvm.bytecode_array.program[i].fn){
 			printf("%zu %s: \n", i, ir_table_lh[kotvm.bytecode_array.program[i].bytecode]);
 		}else{
-			printf("\t%zu: %s 0x%x, 0x%x \t\t| var name: %s\n", i, ir_table_lh[kotvm.bytecode_array.program[i].bytecode],\
+			printf("\t%zu: %s 0x%x, 0x%x, aux 0x%x \t\t| var name: %s\n", i, ir_table_lh[kotvm.bytecode_array.program[i].bytecode],\
 																				kotvm.bytecode_array.program[i].arg_0,\
 																				kotvm.bytecode_array.program[i].arg_1,\
+																				kotvm.bytecode_array.program[i].arg_2,\
 																				kotvm.bytecode_array.program[i].label
 			);
 		}
@@ -95,12 +99,14 @@ void kot_get_memory_dump(){
 }
 
 
-void kot_push_instruction(Arena_header* ah, kot_ir inst, char* label, uint32_t arg_0, uint32_t arg_1){
+void kot_push_instruction(Arena_header* ah, kot_ir inst, char* label, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2, bool tag){
 	inst_slice is = {
 		.label = label,
 		.bytecode = inst,
 		.arg_0 = arg_0,
-		.arg_1 = arg_1
+		.arg_1 = arg_1,
+		.arg_2 = arg_2,
+		.fn = tag
 	};
 	dapush(*ah, kotvm.bytecode_array.program, kotvm.bytecode_array.tracker, kotvm.bytecode_array.size, inst_slice, is);
 }

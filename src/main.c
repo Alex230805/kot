@@ -47,14 +47,30 @@ void kot_helper(){
 int main(int argc, char** argv){
 	StringBuilder *file = NULL;
 	char *buffer = NULL;
-	if(argc == 1){
-		kot_init_vm(&ah);
+	bool ir_out = false;
+	bool md_out = false;
+	bool file_provided = false;
+	int file_pos_ptr = 0;
+	for(int i=1;i<argc;i++){
+		if(strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0){
+			kot_helper();		
+		}else if(strcmp(argv[i], "-ir") == 0 || strcmp(argv[i], "--intermediate-representation") == 0){
+			ir_out = true;
+		}else if(strcmp(argv[i], "-md") == 0 || strcmp(argv[i], "--memory-dump") == 0){
+			md_out = true;
+		}else if(strstr(argv[i],".kot") != NULL){
+			file_provided = true;
+			file_pos_ptr = i;
+		}
+	}
+	kot_init_vm(&ah);
+	if(!file_provided){
 		while(true){
 			buffer = (char*)arena_alloc(&ah, sizeof(char)*DEFAULT_BUFFER_SIZE);
 			fgets(buffer, DEFAULT_BUFFER_SIZE, stdin);
 			if(strcmp(buffer, "exit();\n") == 0){
-				//kot_get_memory_dump();
-				//kot_get_bytecode();
+				if(md_out) kot_get_memory_dump();
+				if(ir_out) kot_get_bytecode();
 				finish();
 			}
 			lxer_start_lexing(&lh, buffer);
@@ -65,32 +81,17 @@ int main(int argc, char** argv){
 			lh.lxer_tracker = 0;
 		}
 	}else{
-		switch(argc){
-			case 2: 
-				if(strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0){
-					kot_helper();
-				}else{
-					char *correct_source = strstr(argv[1],".kot");
-					if(correct_source){
-						file = read_file_no_error(&ah,argv[1]);
-						if(!file->string){
-							error_push_error(&eh, "Unable to find the specified file", 0, 1, NULL, 0);
-							abort();
-						}
-						kot_init_vm(&ah);
-						kot_parse(&ah, &lh, &eh);
-					}else{
-						error_push_error(&eh, "No source file, be sure to provide a '.kot' file!", 0, 2, NULL, 0);
-						abort();
-					}
-				}
-				break;
-			default: 
-				error_push_error(&eh, "Too many arguments", 0, 420, NULL, 0);
-				abort();
-				break;
-		}	
+		file = read_file_no_error(&ah,argv[file_pos_ptr]);
+		if(!file->string){
+			error_push_error(&eh, "Unable to find the specified file", 0, 1, NULL, 0);
+			abort();
+		}
+		kot_init_vm(&ah);
+		kot_parse(&ah, &lh, &eh);
+		// file execution 
 	
+		if(md_out) kot_get_memory_dump();
+		if(ir_out) kot_get_bytecode();
 	}
 	return 0;
 }
