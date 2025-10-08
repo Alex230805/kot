@@ -248,11 +248,13 @@ void error_print_error(error_handler *eh, const print_set pp){
 		if(pp.pretty_color) fprintf(stderr, "\e[31;49m");
 		error_slice * es = eh->error_array[i];
 		
-		if(pp.error_prefix) fprintf(stderr,"[ERROR]: ");
+		if(pp.error_prefix) fprintf(stderr,"[ERROR] ");
 		if(pp.include_error_code){
 			fprintf(stderr,"return status %d", es->error_code);
 		}
+
 		if(pp.include_error_line){
+			if(pp.include_error_code) fprintf(stderr, " ");
 			fprintf(stderr, "in line %d", es->line);
 		}
 
@@ -261,7 +263,7 @@ void error_print_error(error_handler *eh, const print_set pp){
 			pp.pretty_indentation == true ||\
 			pp.include_reference_line == true ||\
 			pp.include_reference_decoration == true){
-			fprintf(stderr, ", ");
+			fprintf(stderr, ": ");
 		}
 		
 		if(es->error != NULL) fprintf(stderr, "%s", es->error);	

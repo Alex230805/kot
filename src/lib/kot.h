@@ -1,7 +1,7 @@
 #ifndef KOT_H
 #define KOT_H
 
-
+#include <assert.h>
 #include "ilxer.h"
 #include "misc.h"
 
@@ -9,6 +9,8 @@
 #define DEF_PROGRAM_SIZE 64
 #define DEF_MEMORY_SIZE 0xFFFFF
 #define DEF_STACK_INIT	0x01000
+#define DEF_SOURCE_SIZE  256 // intended as line of code, not individual character
+
 
 #define IR()\
 	X(IR_PUSH)\
@@ -87,19 +89,26 @@ typedef struct{
 	uint32_t stack_pointer;
 	uint32_t gpr[GPR_NUM];
 	float fr[GPR_NUM];
+	
 	binary_rp bytecode_array;
+	
 	uint32_t *memory;
 	uint32_t def_memory_size;
+	
+	char** program_source;
+	size_t program_source_size;
+	size_t program_source_tracker;
+
 }vkot_machine;
 
 static vkot_machine kotvm;
 
 void kot_init_vm(Arena_header*ah);
-int kot_parse(Arena_header* ah,lxer_header* lh, error_handler *eh);
+int kot_parse(Arena_header* ah,lxer_header* lh, error_handler *eh, bool console);
 void kot_get_bytecode();
 void kot_get_memory_dump();
 void kot_push_instruction(Arena_header* ah, kot_ir inst, char* label, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2, bool tag);
-
+void kot_get_program_list(FILE* filestream);
 
 #ifndef KOT_C
 #define KOT_C

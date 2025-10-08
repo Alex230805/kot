@@ -4,15 +4,27 @@
 
 
 void lxer_start_lexing(lxer_header* lh, char * source){
-	if(DEBUG) DINFO("Start lexing", NULL);
+	if(DEBUG) DINFO("Start lexing, file size: %d", strlen(source));
 	lh->source = source;
 	lh->source_len = strlen(source);
 	size_t array_size = 12;
 	size_t array_tracker = 0;
 	token_slice *cache_mem = (token_slice*)arena_alloc(&lh->lxer_ah,sizeof(token_slice)*array_size);
 	char * buffer = (char*)arena_alloc(&lh->lxer_ah,sizeof(char)*32);
-
-	bool ignore_lex;
+	bool ignore_lex = true;
+	
+	for(size_t i=0;i<lh->source_len && ignore_lex;i++){
+		if(lh->source[i] > 0x20){
+			ignore_lex = false;
+		}
+	}
+	if(ignore_lex){
+		cache_mem[array_tracker].token = TOKEN_TABLE_END;
+		cache_mem[array_tracker].byte_pointer = lh->source;
+		lh->stream_out = cache_mem;
+		lh->stream_out_len = array_tracker;
+		return;
+	}
 
 	for(size_t i=0;i<lh->source_len;i++){
 		char* tracker = &lh->source[i];
@@ -92,7 +104,8 @@ void lxer_start_lexing(lxer_header* lh, char * source){
 
 
 void lxer_get_lxer_content(lxer_header*lh){
-	NOTY("LXER","Tokenzer output: ", NULL);
+	NOTY("ILXER", "Stream out length: %d", lh->stream_out_len);
+	NOTY("ILXER","Tokenzer output: ", NULL);
 	for(size_t i=0;i<lh->stream_out_len;i++){
 		LXR_TOKENS tok = lh->stream_out[i].token;
 		char* pointer = lh->stream_out[i].byte_pointer;
@@ -705,7 +718,7 @@ char* lxer_get_rh(lxer_header* lh, bool reverse){
 	word_len = end_ptr-pointer;
 	memcpy(&buffer[0],pointer, word_len);
 	buffer[word_len] = '\0';
-	if(strchr(buffer, ' ') != NULL) buffer[0] = '\0';
+	if(strchr(buffer, ' ') != NULL) return NULL;
 	return buffer;
 }
 char** lxer_get_rh_lh(lxer_header*lh){

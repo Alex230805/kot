@@ -206,10 +206,8 @@ static char* token_table_lh[] = {
 	[LXR_DEFINE] = "#define",
 	[LXR_UNDEF] = "#undef",
 	[LXR_MACRO_OPEN] = "#macro",
-	[LXR_MACRO_CLOSE] = "#endmacro",
+	[LXR_MACRO_CLOSE] = "#endmacro"
 
-	// ilxer related tag
-	[NOT_A_TOKEN] = "NOT_A_TOKEN",
 };
 
 // length of the defined token table

@@ -3,6 +3,16 @@
 #include "kot.h"
 
 
+#define KOT_ERROR_PRECISE(name)\
+	error_push_error(eh,name, 0, 2 ,lxer_get_current_pointer(lh),strlen(lxer_get_current_pointer(lh)));\
+	status = 1;
+
+#define KOT_ERROR(name)\
+	error_push_error(eh,name, 0, 2 ,NULL,0);\
+	error_print_error(eh,(print_set){true,true,false,false,true,false, false});\
+	eh->tracker = 0;
+
+
 void kot_init_vm(Arena_header*ah){
 	kotvm.program_counter = 0x00;
 	memset(kotvm.gpr, 0, sizeof(uint32_t)*GPR_NUM);
@@ -13,55 +23,46 @@ void kot_init_vm(Arena_header*ah){
 	kotvm.memory = (uint32_t*)arena_alloc(ah, sizeof(uint32_t)*DEF_MEMORY_SIZE);
 	kotvm.def_memory_size = DEF_MEMORY_SIZE;
 	kotvm.stack_pointer = DEF_STACK_INIT;
+	
+	kotvm.program_source = (char**)arena_alloc(ah, sizeof(char*)*DEF_SOURCE_SIZE);
+	kotvm.program_source_size = DEF_SOURCE_SIZE;
+	kotvm.program_source_tracker = 0;
 }
 
 
-int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh){
-	//lxer_get_lxer_content(lh);
+int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh, bool console){
 	LXR_TOKENS token; 
 	LXR_TOKENS next_token; 
 	LXR_TOKENS type;
-	int status = 0; 
-	bool fn_scope_open = false;
-	bool string_lit = false;
-	do{
-		token = lxer_get_current_token(lh);
-		next_token = lxer_get_next_token(lh);
-		printf("reading current token: '%s'\n", token_table_lh[token]);
-		if(token != TOKEN_TABLE_END) status = 1;
-		
-		if(lxer_is_type(token)){
-			char* buffer = lxer_get_rh(lh,false);
-			if(buffer == NULL || strlen(buffer) < 1) {
-				error_push_error(eh, "missing name", 0, 1,NULL,0);
-				status = 1;
-				goto ret;
-			}
-			type = token;
-			if(next_token == LXR_ASSIGNMENT){
-				printf("variable definition detected: '%s'\n", buffer);
-
-			}else if(next_token == LXR_SEMICOLON){
-				//printf("variable declaration detected: '%s'\n", buffer);
-				kot_push_instruction(ah, IR_PUSH, buffer, 0, 0, 0, false);
-			}else if(lxer_is_brk(next_token)){
-				fn_scope_open = true;
-			}else{
-				error_push_error(eh, "syntax error, incomplete phrase", 0, 1,NULL,0);
-				status = 1;
-			}
-		}else if(lxer_is_brk(token)){
-			if(fn_scope_open){
-			
-			
-			}
+	int status = 0;
+	if(lh->stream_out_len < 2){
+		if(!console){
+			KOT_ERROR("Empty file!");
+			return 0;
 		}
-	}while(lxer_next_token(lh));
-ret:
+	}
+	
+	if(DEBUG) lxer_get_lxer_content(lh);
+	
+	while(status == 0 && lxer_get_current_token(lh) != TOKEN_TABLE_END){
+		lxer_next_token(lh);
+	}
+	
+	if(status == 0){ // push line only if it is validated and syntactically correct
+		dapush(*ah,kotvm.program_source, kotvm.program_source_tracker,kotvm.program_source_size, char*, lh->source);	
+	}
+	
 	return status;
 }
 
 
+
+void kot_get_program_list(FILE* filestream){
+	fprintf(filestream,"\nProgram list: \n\n");
+	for(size_t i=0;i<kotvm.program_source_tracker;i++){
+		fputs(kotvm.program_source[i],filestream);
+	}
+}
 
 void kot_get_bytecode(){
 	fprintf(stdout, "\nCurrent program list: \n");
