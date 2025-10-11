@@ -7,10 +7,10 @@
 
 #define GPR_NUM 32
 #define DEF_PROGRAM_SIZE 64
-#define DEF_MEMORY_SIZE 0xFFFFF
+#define DEF_MEMORY_SIZE 0xFF
 #define DEF_STACK_INIT	0x01000
 #define DEF_SOURCE_SIZE  256 // intended as line of code, not individual character
-
+#define DEF_GET_ARR_SIZE 256
 
 #define IR()\
 	X(IR_PUSH)\
@@ -92,23 +92,38 @@ typedef struct{
 	
 	binary_rp bytecode_array;
 	
-	uint32_t *memory;
+	char *memory;
 	uint32_t def_memory_size;
-	
+	uint32_t memory_tracker;
+
 	char** program_source;
 	size_t program_source_size;
 	size_t program_source_tracker;
-
 }vkot_machine;
 
 static vkot_machine kotvm;
+static size_t line;
+
+static char** globl_variable;
+static size_t globl_variable_tracker;
+static size_t globl_variable_size;
 
 void kot_init_vm(Arena_header*ah);
+void kot_init_interpreter(Arena_header* ah);
+
+void kot_push_globl_variable_def(Arena_header* ah,char* name);
+bool kot_globl_variable_already_present(char* name);
+
 int kot_parse(Arena_header* ah,lxer_header* lh, error_handler *eh, bool console);
 void kot_get_bytecode();
 void kot_get_memory_dump();
-void kot_push_instruction(Arena_header* ah, kot_ir inst, char* label, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2, bool tag);
+void kot_push_instruction(Arena_header* ah, kot_ir inst, char* label, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2, bool is_fn);
 void kot_get_program_list(FILE* filestream);
+int kot_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh, LXR_TOKENS type);
+int kot_process_type(Arena_header* ah, lxer_header* lh, error_handler *eh);
+void kot_set_line(size_t line);
+size_t kot_write_mem(Arena_header* ah,char* string, int size);
+
 
 #ifndef KOT_C
 #define KOT_C

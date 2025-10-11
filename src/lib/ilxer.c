@@ -4,7 +4,7 @@
 
 
 void lxer_start_lexing(lxer_header* lh, char * source){
-	if(DEBUG) DINFO("Start lexing, file size: %d", strlen(source));
+	if(DEBUG) DINFO("Start lexing, file size: %lu", strlen(source));
 	lh->source = source;
 	lh->source_len = strlen(source);
 	size_t array_size = 12;
@@ -104,7 +104,7 @@ void lxer_start_lexing(lxer_header* lh, char * source){
 
 
 void lxer_get_lxer_content(lxer_header*lh){
-	NOTY("ILXER", "Stream out length: %d", lh->stream_out_len);
+	NOTY("ILXER", "Stream out length: %zu", lh->stream_out_len);
 	NOTY("ILXER","Tokenzer output: ", NULL);
 	for(size_t i=0;i<lh->stream_out_len;i++){
 		LXR_TOKENS tok = lh->stream_out[i].token;
@@ -686,7 +686,7 @@ bool lxer_misc_expect_misc(lxer_header*lh){
 }
 
 
-char* lxer_get_rh(lxer_header* lh, bool reverse){
+char* lxer_get_rh(lxer_header* lh, bool reverse, bool strict){
 	char* buffer = (char*)arena_alloc(&lh->lxer_ah, sizeof(char)*256);
 
 	size_t tracker = lh->lxer_tracker;
@@ -718,14 +718,46 @@ char* lxer_get_rh(lxer_header* lh, bool reverse){
 	word_len = end_ptr-pointer;
 	memcpy(&buffer[0],pointer, word_len);
 	buffer[word_len] = '\0';
-	if(strchr(buffer, ' ') != NULL) return NULL;
+	char* space = strchr(buffer, ' ');
+	if(space != NULL && strict){
+		buffer[space - buffer] = '\0';
+	}
 	return buffer;
 }
 char** lxer_get_rh_lh(lxer_header*lh){
 	char** buffer_array = (char**)arena_alloc(&lh->lxer_ah, sizeof(char*)*2);
 
-	buffer_array[0] = lxer_get_rh(lh, false); 
-	buffer_array[1] = lxer_get_rh(lh, true);
+	buffer_array[0] = lxer_get_rh(lh, false, false); 
+	buffer_array[1] = lxer_get_rh(lh, true, false);
 
 	return buffer_array;
+}
+
+char*   lxer_get_string(lxer_header*lh, LXR_TOKENS target){
+	char* buffer = NULL;
+	size_t tracker = lh->lxer_tracker;
+	
+	if(tracker >= lh->stream_out_len) return NULL;
+	char* current_ptr = lh->stream_out[tracker].byte_pointer;
+	char* end_ptr = NULL;
+	bool found = false;
+	size_t size = 0;
+
+	current_ptr += strlen(token_table_lh[lh->stream_out[tracker].token]);
+	tracker += 1;
+	while(tracker < lh->stream_out_len && !found){
+		if(lh->stream_out[tracker].token == target){
+			found = true;
+		}else{
+			tracker += 1;
+		}
+	}
+	if(!found || tracker >= lh->stream_out_len) return NULL;
+	end_ptr = lh->stream_out[tracker].byte_pointer;
+	size = end_ptr - current_ptr;
+	buffer = (char*)arena_alloc(&lh->lxer_ah, sizeof(char)*size);
+	memcpy(buffer,current_ptr, size);
+	buffer[size] = '\0';
+	lh->lxer_tracker = tracker;
+	return buffer;
 }

@@ -6,9 +6,9 @@
 #include "misc.h"
 #include "kot.h"
 
-static Arena_header ah = {0};
-static lxer_header lh = {0};
-static error_handler eh = {0}; 
+Arena_header ah = {0};
+lxer_header lh = {0};
+error_handler eh = {0}; 
 
 #define DEFAULT_BUFFER_SIZE 256
 #define DEFAULT_SRC_SIZE 4
@@ -37,7 +37,7 @@ void finish(){
 
 void kot_helper(){
 	fprintf(stdout,"\n===========================================================\n\n");
-	fprintf(stdout, "KOT: C-like console parser:\n");
+	fprintf(stdout, "KOT: C-like console parser and interpreter:\n");
 	fprintf(stdout, "\tusage: kot [param]\n");
 	fprintf(stdout, "\t\t-h/--help: print help\n\n");
 	fprintf(stdout, "\t\t-ir/--intermediate-representation: get intermediate\n\t\trepresentation in form of bytecode used by the \n\t\tkot vm\n\n");
@@ -85,34 +85,54 @@ int main(int argc, char** argv){
 		}
 	}
 	kot_init_vm(&ah);
+	kot_init_interpreter(&ah);
 	if(!file_provided){
 		fputs("Starting kot in console mode\n\n", stdout);
 		size_t line = 0;
+		bool kot_console = false;
 		while(true){
 			buffer = (char*)arena_alloc(&ah, sizeof(char)*DEFAULT_BUFFER_SIZE);
-			fprintf(stdout, "%d: ", line);
-			fgets(buffer, DEFAULT_BUFFER_SIZE, stdin);
-			if(strstr(buffer, "kot") == buffer){
-				// kot console related features
-				TODO("Kot console features", NULL);	
+			if(kot_console){
+				// kot console mode
+				fprintf(stdout, "kot:> ");
+				fgets(buffer, DEFAULT_BUFFER_SIZE, stdin);
+				if(strstr(buffer, "q") == buffer){
+					kot_console = false;
+				}else if(strstr(buffer, "l") == buffer){
+					kot_get_program_list(stdout);
+				}else if(strstr(buffer, "h") == buffer || strstr(buffer, "help") == buffer){
+					fprintf(stdout, "\nCommand helper in kot console mode: \n");
+					fprintf(stdout, "h: get help \n");
+					fprintf(stdout, "l: get current program listate\n");
+					fprintf(stdout, "q: quit kot console mode and go back to execution mode\n\n");
+				}
 			}else{
-				if(strcmp(buffer, "exit();\n") == 0){
-					if(md_out) kot_get_memory_dump();
-					if(ir_out) kot_get_bytecode();
-					if(pl_out) kot_get_program_list(stdout);
-					finish();
+				// kot execution mode
+				fprintf(stdout, "%zu: ", line);
+				fgets(buffer, DEFAULT_BUFFER_SIZE, stdin);
+				if(strstr(buffer, "kot") == buffer){
+					kot_console = true;
+				}else{
+					if(strcmp(buffer, "exit();\n") == 0){
+						if(md_out) kot_get_memory_dump();
+						if(ir_out) kot_get_bytecode();
+						if(pl_out) kot_get_program_list(stdout);
+						finish();
+					}
+					kot_set_line(line);
+					lxer_start_lexing(&lh, buffer);
+					if(kot_parse(&ah,&lh, &eh, true)){
+						kot_report();
+						eh.tracker = 0;
+					}else{
+						line++;
+						lh.lxer_tracker = 0;
+					}
 				}
-				
-				lxer_start_lexing(&lh, buffer);
-				if(kot_parse(&ah,&lh, &eh, true)){
-					kot_report();
-					eh.tracker = 0;
-				}
-				line++;
-				lh.lxer_tracker = 0;
 			}
 		}
 	}else{
+		// file execution mode
 		file = read_file_no_error(&ah,argv[file_pos_ptr]);
 		if(!file->string){
 			error_push_error(&eh, "Unable to find the specified file", 0, 1, NULL, 0);
@@ -120,7 +140,6 @@ int main(int argc, char** argv){
 		}
 		kot_init_vm(&ah);
 		kot_parse(&ah, &lh, &eh, false);
-		// file execution 
 	
 		if(md_out) kot_get_memory_dump();
 		if(ir_out) kot_get_bytecode();

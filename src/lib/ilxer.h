@@ -316,9 +316,9 @@ bool lxer_misc_expect_misc(lxer_header*lh);
 //	pointer ( same behaviour apply to get both and get reverse )
 //
 //
-char*   lxer_get_rh(lxer_header*lh, bool reverse);
+char*   lxer_get_rh(lxer_header*lh, bool reverse, bool strict);
 char**  lxer_get_rh_lh(lxer_header*lh);
-
+char*   lxer_get_string(lxer_header*lh, LXR_TOKENS target);
 
 #ifndef ILXER_IMPLEMENTATION
 #define ILXER_IMPLEMENTATION
