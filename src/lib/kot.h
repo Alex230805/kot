@@ -101,6 +101,17 @@ typedef struct{
 	size_t program_source_tracker;
 }vkot_machine;
 
+
+
+typedef enum{KOT_INT, KOT_CHAR, KOT_BOOL} KOT_TYPE;
+
+typedef struct{
+	char* name;
+	size_t param_len;
+	KOT_TYPE* param_type;
+}fn_signature;
+
+
 static vkot_machine kotvm;
 static size_t line;
 
@@ -108,21 +119,35 @@ static char** globl_variable;
 static size_t globl_variable_tracker;
 static size_t globl_variable_size;
 
+static fn_signature* globl_fn_signature;
+static size_t globl_fn_signature_tracker;
+static size_t globl_fn_signature_size;
+
+
 void kot_init_vm(Arena_header*ah);
 void kot_init_interpreter(Arena_header* ah);
+
 
 void kot_push_globl_variable_def(Arena_header* ah,char* name);
 bool kot_globl_variable_already_present(char* name);
 
+
+void kot_push_fn_dec(Arena_header* ah, fn_signature fn);
+bool kot_fn_already_declared(fn_signature fn);
+fn_signature* kot_define_fn(Arena_header* ah,char* name,int param_len, KOT_TYPE* param_type);
+
 int kot_parse(Arena_header* ah,lxer_header* lh, error_handler *eh, bool console);
+
+int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh, bool *function_open);
+int kot_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh, LXR_TOKENS type);
+int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,char*name, LXR_TOKENS type);
+
+void kot_set_line(size_t line);
+size_t kot_write_mem(Arena_header* ah,char* string, int size);
 void kot_get_bytecode();
 void kot_get_memory_dump();
 void kot_push_instruction(Arena_header* ah, kot_ir inst, char* label, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2, bool is_fn);
 void kot_get_program_list(FILE* filestream);
-int kot_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh, LXR_TOKENS type);
-int kot_process_type(Arena_header* ah, lxer_header* lh, error_handler *eh);
-void kot_set_line(size_t line);
-size_t kot_write_mem(Arena_header* ah,char* string, int size);
 
 
 #ifndef KOT_C

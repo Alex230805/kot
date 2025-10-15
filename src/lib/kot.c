@@ -34,6 +34,10 @@ void kot_init_interpreter(Arena_header* ah){
 	globl_variable = (char**)arena_alloc(ah,sizeof(char*)*DEF_GET_ARR_SIZE);
 	globl_variable_tracker = 0;
 	globl_variable_size = DEF_GET_ARR_SIZE;
+
+	globl_fn_signature = (fn_signature*)arena_alloc(ah, sizeof(fn_signature)*DEF_GET_ARR_SIZE);
+	globl_fn_signature_tracker = 0;
+	globl_fn_signature_size = DEF_GET_ARR_SIZE;
 }
 
 void kot_init_vm(Arena_header*ah){
@@ -106,9 +110,36 @@ int kot_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh
 	return status;
 }
 
+int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh, char* name, LXR_TOKENS type){
+	int status = 0;
+	LXR_TOKENS token, next_token;
+	fn_signature* fn = NULL;
+	KOT_PARSER_REFRESH();
+	KOT_PARSER_NEXT();
+	if(token == LXR_CLOSE_BRK){
+		KOT_PARSER_NEXT();
+		if(token == LXR_OPEN_CRL_BRK){
+			fn = kot_define_fn(ah,name,0, NULL);
+			if(!kot_fn_already_declared(*fn)){
+				kot_push_fn_dec(ah, *fn);
+				kot_push_instruction(ah, IR_TAG,fn->name, 0,0,0,true);
+				printf("Function named %s declared and opened\n", fn->name);
+			}else{
+				KOT_ERROR("Function already defined");
+			}
+		}else{
+			KOT_SYNTAX_ERR();
+		}
+	}else{
+		TODO("Function argument processor", NULL);
+	}
+	return status;
+}
+
+
 /* PROCESSING EXPRESSION THAT START WITH A TYPE */
 
-int kot_process_type(Arena_header* ah, lxer_header* lh, error_handler *eh){
+int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh, bool* function_open){
 	int status = 0;
 	LXR_TOKENS token, next_token, type, cache_token; 
 	KOT_PARSER_REFRESH();
@@ -125,6 +156,12 @@ int kot_process_type(Arena_header* ah, lxer_header* lh, error_handler *eh){
 				status = kot_argument_processor(ah,lh,eh,type);
 				break;
 			case LXR_OPEN_BRK:
+				if(!*function_open){
+					status = kot_function_processor(ah, lh, eh, name, type);
+					*function_open = true;
+				}else{
+					KOT_ERROR("You cannot declare a function scope inside another function body");
+				}
 				break;
 			case LXR_SEMICOLON:
 				if(!kot_globl_variable_already_present(name)){
@@ -152,6 +189,7 @@ int kot_process_type(Arena_header* ah, lxer_header* lh, error_handler *eh){
 int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh, bool console){
 	LXR_TOKENS token, next_token, cache_token;
 	int status = 0;
+	static bool function_open = false;
 	if(lh->stream_out_len < 2){
 		if(!console){
 			KOT_ERROR("Empty file!");
@@ -164,7 +202,7 @@ int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh, bool console
 		token = lxer_get_current_token(lh);
 		next_token = lxer_get_next_token(lh);
 		if(lxer_is_type(token)){
-			status = kot_process_type(ah, lh, eh);
+			status = kot_type_processor(ah, lh, eh, &function_open);
 		}
 		lxer_next_token(lh);
 	}
@@ -187,9 +225,9 @@ void kot_get_bytecode(){
 	fprintf(stdout, "\nCurrent program list: \n");
 	for(size_t i=0;i<kotvm.bytecode_array.tracker;i++){
 		if(kotvm.bytecode_array.program[i].fn){
-			printf("%zu %s: \n", i, ir_table_lh[kotvm.bytecode_array.program[i].bytecode]);
+			printf("\t%s: %s \n", kotvm.bytecode_array.program[i].label ,ir_table_lh[kotvm.bytecode_array.program[i].bytecode]);
 		}else{
-			printf("\t%zu: %s 0x%x, 0x%x, aux 0x%x \t\t| ", i, ir_table_lh[kotvm.bytecode_array.program[i].bytecode],\
+			printf("\t\t%zu: %s 0x%x, 0x%x, aux 0x%x \t\t| ", i, ir_table_lh[kotvm.bytecode_array.program[i].bytecode],\
 																				kotvm.bytecode_array.program[i].arg_0,\
 																				kotvm.bytecode_array.program[i].arg_1,\
 																				kotvm.bytecode_array.program[i].arg_2\
@@ -235,7 +273,7 @@ void kot_push_instruction(Arena_header* ah, kot_ir inst, char* label, uint32_t a
 }
 
 void kot_push_globl_variable_def(Arena_header* ah,char* name){
-	if(globl_variable_tracker += 1 >= globl_variable_tracker){
+	if(globl_variable_tracker += 1 >= globl_variable_size){
 		char** old_arr = globl_variable;
 		globl_variable = (char**)arena_alloc(ah,sizeof(char*)*globl_variable_size*2);
 		globl_variable_size*=2;
@@ -244,6 +282,7 @@ void kot_push_globl_variable_def(Arena_header* ah,char* name){
 	globl_variable[globl_variable_tracker] = name;
 	globl_variable_tracker += 1;
 }
+
 
 bool kot_globl_variable_already_present(char* name){
 	for(size_t i=0;i<globl_variable_tracker; i++){
@@ -255,6 +294,42 @@ bool kot_globl_variable_already_present(char* name){
 	}
 	return false;
 }
+
+
+void kot_push_fn_dec(Arena_header* ah, fn_signature fn){
+	if(globl_fn_signature_tracker += 1 >= globl_fn_signature_size){
+		fn_signature* old_arr = globl_fn_signature;
+		globl_fn_signature = (fn_signature*)arena_alloc(ah,sizeof(fn_signature)*globl_fn_signature_size*2);
+		globl_fn_signature_size*=2;
+		memcpy(globl_fn_signature, old_arr, sizeof(fn_signature)*globl_fn_signature_tracker);
+	}
+	globl_fn_signature[globl_fn_signature_tracker] = fn;
+	globl_fn_signature_tracker += 1;
+}
+
+
+bool kot_fn_already_declared(fn_signature fn){
+	bool status = false;
+	for(size_t i=0;i<globl_fn_signature_tracker && !status; i++){
+		if(globl_fn_signature[i].name != NULL){
+			if(strcmp(globl_fn_signature[i].name, fn.name) == 0){
+				status = true;
+			}
+		}
+	}
+	return status;
+}
+
+
+fn_signature* kot_define_fn(Arena_header* ah,char* name,int param_len, KOT_TYPE* param_type){
+	fn_signature* fn = (fn_signature*)arena_alloc(ah, sizeof(fn_signature));
+	fn->name = (char*)arena_alloc(ah, sizeof(char)*strlen(name));
+	strcpy(fn->name, name);
+	fn->param_len = param_len;
+	fn->param_type = param_type;
+	return fn;
+}
+
 
 void kot_set_line(size_t cline){
 	line = cline;

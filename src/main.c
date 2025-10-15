@@ -35,6 +35,13 @@ void finish(){
 }
 
 
+void kot_console_helper(){
+	fprintf(stdout, "\nCommand helper in kot console mode: \n");
+	fprintf(stdout, "h: get help \n");
+	fprintf(stdout, "l: get current program listate\n");
+	fprintf(stdout, "q: quit kot console mode and go back to execution mode\n\n");
+}
+
 void kot_helper(){
 	fprintf(stdout,"\n===========================================================\n\n");
 	fprintf(stdout, "KOT: C-like console parser and interpreter:\n");
@@ -101,10 +108,10 @@ int main(int argc, char** argv){
 				}else if(strstr(buffer, "l") == buffer){
 					kot_get_program_list(stdout);
 				}else if(strstr(buffer, "h") == buffer || strstr(buffer, "help") == buffer){
-					fprintf(stdout, "\nCommand helper in kot console mode: \n");
-					fprintf(stdout, "h: get help \n");
-					fprintf(stdout, "l: get current program listate\n");
-					fprintf(stdout, "q: quit kot console mode and go back to execution mode\n\n");
+					kot_console_helper();
+				}else{
+					fprintf(stdout, "Not a valid command\n");
+					kot_console_helper();
 				}
 			}else{
 				// kot execution mode
