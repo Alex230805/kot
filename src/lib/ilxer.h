@@ -31,8 +31,8 @@
 	X(LXR_DOUBLE_TYPE)\
 	X(LXR_FLOAT_TYPE)\
 	X(LXR_CHAR_TYPE)\
-	X(LXR_VOID_TYPE)
-
+	X(LXR_VOID_TYPE)\
+	X(LXR_BOOL_TYPE)
 
 #define TAG_SEP()\
 	X(LXR_COMMA)\
@@ -165,6 +165,7 @@ static char* token_table_lh[] = {
 	[LXR_FLOAT_TYPE] = "float",
 	[LXR_CHAR_TYPE] = "char",
 	[LXR_VOID_TYPE] = "void",
+	[LXR_BOOL_TYPE] = "bool",
 
 
 	// sep 

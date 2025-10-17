@@ -110,10 +110,16 @@ int kot_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh
 	return status;
 }
 
+
+
 int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh, char* name, LXR_TOKENS type){
 	int status = 0;
 	LXR_TOKENS token, next_token;
 	fn_signature* fn = NULL;
+
+	KOT_TYPE* param_type = (KOT_TYPE*)arena_alloc(ah, sizeof(KOT_TYPE)*512);
+	size_t param_len = 0;
+	
 	KOT_PARSER_REFRESH();
 	KOT_PARSER_NEXT();
 	if(token == LXR_CLOSE_BRK){
@@ -123,7 +129,7 @@ int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,
 			if(!kot_fn_already_declared(*fn)){
 				kot_push_fn_dec(ah, *fn);
 				kot_push_instruction(ah, IR_TAG,fn->name, 0,0,0,true);
-				printf("Function named %s declared and opened\n", fn->name);
+				//printf("Function named %s declared and opened\n", fn->name);
 			}else{
 				KOT_ERROR("Function already defined");
 			}
@@ -132,6 +138,7 @@ int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,
 		}
 	}else{
 		TODO("Function argument processor", NULL);
+		assert(0);
 	}
 	return status;
 }

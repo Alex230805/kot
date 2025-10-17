@@ -68,6 +68,7 @@ static char* ir_table_lh[] = {
 	[IR_ILLEGAL] = "illegal"
 };
 
+
 typedef struct{
 	char* label;
 	bool fn;
@@ -103,7 +104,30 @@ typedef struct{
 
 
 
-typedef enum{KOT_INT, KOT_CHAR, KOT_BOOL} KOT_TYPE;
+typedef enum{
+	KOT_INT, 
+	KOT_CHAR, 
+	KOT_BOOL,
+	KOT_VOID,
+	KOT_STR,
+	KOT_DOUBLE,
+	KOT_FLOAT,
+	KOT_UNDEFINED
+} KOT_TYPE;
+
+
+static char* type_table_lh[] = {
+	[KOT_INT] = "int", 
+	[KOT_CHAR] = "char", 
+	[KOT_BOOL] = "bool",
+	[KOT_VOID] = "void",
+	[KOT_STR] = "str",
+	[KOT_DOUBLE] = "double",
+	[KOT_FLOAT] = "float",
+	[KOT_UNDEFINED] = "undefined type"
+};
+
+
 
 typedef struct{
 	char* name;

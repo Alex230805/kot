@@ -21,44 +21,44 @@
 #define DEF_SB_SIZE 256
 
 #if !(defined(PAGE_SIZE) || defined(PAGE_NUMBER))
-  
-  #define PAGE_SIZE 1 // in bytes   
-  #define PAGE_NUMBER 5 // number of pages per arena. The length of the arena would be PAGE_SIZE*PAGE_NUMBER.
+
+#define PAGE_SIZE 1 // in bytes   
+#define PAGE_NUMBER 5 // number of pages per arena. The length of the arena would be PAGE_SIZE*PAGE_NUMBER.
 
 #endif 
 
 
 typedef struct{
-  void** address;
-  int size;
-  int pointer;
+	void** address;
+	int size;
+	int pointer;
 }tb_gc;
 
 extern tb_gc general_gc;
 
 typedef struct{
-  char*string;
-  int len;
-  size_t size;
+	char* string;
+	int len;
+	size_t size;
 }StringBuilder;
- 
+
 typedef struct Arena_alloc{
-  struct Arena_alloc* next;
-  int obj; // number or object allocated in memory
-  int pages;  // number of pages created in memory
-  int free_pages; // number of free pages
-  size_t* arena_start_ptr; // arena start pointer
-  int page_size; // page size 
-  int cursor; // cursor to navigate the allocated page in the array
-  size_t** pages_pointers; // page array reference
-  bool* allocated_page; // page flags
+	struct Arena_alloc* next;
+	int obj; // number or object allocated in memory
+	int pages;  // number of pages created in memory
+	int free_pages; // number of free pages
+	size_t* arena_start_ptr; // arena start pointer
+	int page_size; // page size 
+	int cursor; // cursor to navigate the allocated page in the array
+	size_t** pages_pointers; // page array reference
+	bool* allocated_page; // page flags
 }Arena_alloc;
 
 typedef struct{
-  int arena_count;
-  Arena_alloc* first_arena;
-  Arena_alloc* swap;
-  Arena_alloc* cursor;
+	int arena_count;
+	Arena_alloc* first_arena;
+	Arena_alloc* swap;
+	Arena_alloc* cursor;
 }Arena_header;
 
 
@@ -93,45 +93,49 @@ typedef struct{
 }print_set;
 
 
+#define TEMP_ALLOC_SIZE 1024*4
+static uint8_t temp_alloc_buffer[TEMP_ALLOC_SIZE];
+static size_t temp_alloc_tracker;
+
 #define TODO(string,...) \
-  fprintf(stdout,"\e[1;32m[TODO]: "string"\e[0m\n",__VA_ARGS__);    // bold green
+	fprintf(stdout,"\e[1;32m[TODO]: "string"\e[0m\n",__VA_ARGS__);    // bold green
 
 #define ERROR(string,...) \
-  fprintf(stderr,"\e[41;37m[ERROR]: "string"\e[0m\n",__VA_ARGS__); exit(1); // underline white, background red
+	fprintf(stderr,"\e[41;37m[ERROR]: "string"\e[0m\n",__VA_ARGS__); exit(1); // underline white, background red
 
 #define DINFO(string, ...) \
-  fprintf(stdout, "\e[4;33m[DEBUG]: "string"\e[0m\n", __VA_ARGS__);  // underline yellow
+	fprintf(stdout, "\e[4;33m[DEBUG]: "string"\e[0m\n", __VA_ARGS__);  // underline yellow
 
 #define NOTY(noty,string, ...) \
-  printf("\e[1;32m["noty"]: "string"\e[0m\n", __VA_ARGS__);          // regular purple
+	printf("\e[1;32m["noty"]: "string"\e[0m\n", __VA_ARGS__);          // regular purple
 
 #define WARNING(string,...) \
-  printf("\e[43;1;91m[WARNING]: "string"\e[0m\n", __VA_ARGS__);
+	printf("\e[43;1;91m[WARNING]: "string"\e[0m\n", __VA_ARGS__);
 
 #define ARENA_ERROR(string) \
-  fprintf(stderr,"[ARENA ALLOCATOR ERROR]: "string"\n");
+	fprintf(stderr,"[ARENA ALLOCATOR ERROR]: "string"\n");
 
 
 #define dapush(arena, arr, tracker, size, cast, obj)\
-  do{\
-    arr[tracker] = obj;\
-    tracker += 1;\
-    if(tracker == size){\
-      size_t new_size = size*2;\
-      cast* new_arr = (cast*)arena_alloc(&arena, sizeof(cast)*new_size);\
-      for(size_t dapush_tracker=0;dapush_tracker<size;dapush_tracker++){\
-        new_arr[dapush_tracker] = arr[dapush_tracker];\
-      }\
-      arr = new_arr;\
-      size = new_size;\
-    }\
-  }while(0);
+	do{\
+		arr[tracker] = obj;\
+		tracker += 1;\
+		if(tracker == size){\
+			size_t new_size = size*2;\
+			cast* new_arr = (cast*)arena_alloc(&arena, sizeof(cast)*new_size);\
+			for(size_t dapush_tracker=0;dapush_tracker<size;dapush_tracker++){\
+				new_arr[dapush_tracker] = arr[dapush_tracker];\
+			}\
+			arr = new_arr;\
+			size = new_size;\
+		}\
+	}while(0);
 
 #ifdef GC_IMP
 
 #define MALLOC(args,ret_ptr, cast)\
-    ret_ptr = (cast)malloc(args);\
-    gc_push(&general_gc, (void*)ret_ptr);
+	ret_ptr = (cast)malloc(args);\
+	gc_push(&general_gc, (void*)ret_ptr);
 
 
 void gc_init(tb_gc * gc);
@@ -146,12 +150,12 @@ void* arena_alloc(Arena_header* arenah ,size_t size);
 void arena_free_area(Arena_alloc* arena);
 void arena_free(Arena_header *arenah);
 
+// temp allocator
+void* temp_alloc(size_t size);
 
 // hex digit converter
 u8t hexStringConverter(char string[]);
 u8t hexDigitConverter(char s);
-
-
 
 // file 
 void write_file(StringBuilder *sb, char *path);
@@ -159,9 +163,11 @@ StringBuilder* read_file(Arena_header*ah,char*path);
 StringBuilder* read_file_no_error(Arena_header*ah,char*path);
 
 // structure and data types
-StringBuilder* sb_alloc(Arena_header* arenah);
-void sb_append(Arena_header* arenah, StringBuilder* sb, char* string);
 
+StringBuilder* sb_alloc();
+StringBuilder* arena_sb_alloc(Arena_header* ah);
+void sb_append(StringBuilder *sb, char* string);
+void arena_sb_append(Arena_header* ah,StringBuilder *sb, char* string);
 
 
 // error function and error handler 

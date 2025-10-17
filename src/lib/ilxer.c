@@ -70,6 +70,7 @@ void lxer_start_lexing(lxer_header* lh, char * source){
 						case LXR_FLOAT_TYPE:
 						case LXR_CHAR_TYPE:
 						case LXR_VOID_TYPE:
+						case LXR_BOOL_TYPE:
 							if(isolated){
 								cache_mem[array_tracker].token = token;
 								cache_mem[array_tracker].byte_pointer = tracker;
