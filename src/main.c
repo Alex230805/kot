@@ -52,18 +52,18 @@ void kot_helper(){
 	fprintf(stdout, "\t\t-pl/--program-list: get program list printed on the\n\t\tstandard output after the console execution has\n\t\tended without errors, only the validated lines\n\t\twill appear in the final stream\n\n");
 	fprintf(stdout, "\tusage: kot {file.kot}\n");
 	fprintf(stdout, "\t\tresult: kot interpreter will execute the .kot file.\n\
-\t\tA .kot can be anything that include a working C code\n\
-\t\timplementation, this means that it will not accept\n\
-\t\tlibrary header or strange preprocessing things like\n\
-\t\tthe classic X macro technique.\n\
-\t\tC programs with working algorithm and the proper\n\
-\t\timplementation should work just fine, remember that\n\
-\t\tany type of function or variable, data structure or\n\
-\t\tenum DECLARATION ( not implementation ) will be excluded\n\
-\t\tas part of what can be parser, it will have no effect on\n\
-\t\tthe program. For example any function implementation\n\
-\t\twill automatically declare it and pushit in a general\n\
-\t\tnamespace, ready to be reached from all point in the program\n");
+		A .kot can be anything that include a working C code\n\
+		implementation, this means that it will not accept\n\
+		library header or strange preprocessing things like\n\
+		the classic X macro technique.\n\
+		C programs with working algorithm and the proper\n\
+		implementation should work just fine, remember that\n\
+		any type of function or variable, data structure or\n\
+		enum DECLARATION ( not implementation ) will be excluded\n\
+		as part of what can be parser, it will have no effect on\n\
+		the program. For example any function implementation\n\
+		will automatically declare it and pushit in a general\n\
+		namespace, ready to be reached from all point in the program\n");
 	fprintf(stdout,"\n===========================================================\n");
 }
 
@@ -91,8 +91,8 @@ int main(int argc, char** argv){
 			file_pos_ptr = i;
 		}
 	}
-	kot_init_vm(&ah);
 	kot_init_interpreter(&ah);
+	kot_init_vm(&ah);
 	if(!file_provided){
 		fputs("Starting kot in console mode\n\n", stdout);
 		size_t line = 0;
@@ -129,11 +129,14 @@ int main(int argc, char** argv){
 					kot_set_line(line);
 					lxer_start_lexing(&lh, buffer);
 					if(kot_parse(&ah,&lh, &eh, true)){
+						lh.lxer_tracker = 0;
 						kot_report();
 						eh.tracker = 0;
 					}else{
 						line++;
 						lh.lxer_tracker = 0;
+						kot_single_run(kot_get_current_inst());
+						kot_pc_inc();
 					}
 				}
 			}
@@ -145,9 +148,10 @@ int main(int argc, char** argv){
 			error_push_error(&eh, "Unable to find the specified file", 0, 1, NULL, 0);
 			abort();
 		}
+		kot_init_interpreter(&ah);
 		kot_init_vm(&ah);
 		kot_parse(&ah, &lh, &eh, false);
-	
+		kot_run();
 		if(md_out) kot_get_memory_dump();
 		if(ir_out) kot_get_bytecode();
 	}

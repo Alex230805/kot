@@ -31,19 +31,16 @@ void lxer_start_lexing(lxer_header* lh, char * source){
 		for(size_t j=0;j<TOKEN_TABLE_END; j++){
 			LXR_TOKENS token = token_array[j];
 			switch(token){
-				case TAG_MATH_END:
-				case TAG_TYPE_END:
-				case TAG_COMMENT_END:
-				case TAG_SEP_END:
-				case TAG_BRK_END:
-				case TAG_STATEMENT_END:
-				case TAG_MISC_END:
+#define X(name)\
+	case name:
+				TOKEN_SEPARATOR()
 					ignore_lex = true;
 					break;
 				default:
 					ignore_lex = false;
 					break;
 			}
+#undef X
 
 			//////////////////////////////////////////
 			if(!ignore_lex){
@@ -70,7 +67,6 @@ void lxer_start_lexing(lxer_header* lh, char * source){
 						case LXR_FLOAT_TYPE:
 						case LXR_CHAR_TYPE:
 						case LXR_VOID_TYPE:
-						case LXR_BOOL_TYPE:
 							if(isolated){
 								cache_mem[array_tracker].token = token;
 								cache_mem[array_tracker].byte_pointer = tracker;
@@ -145,6 +141,24 @@ void lxer_set_new_target(lxer_header* lh, char* new_line){
 			break;
 		}
 	}
+}
+
+void lxer_increase_tracker(lxer_header*lh,int tracker){
+	if(lh->lxer_tracker+tracker < lh->stream_out_len){
+		lh->lxer_tracker += tracker;
+	}
+}
+
+
+
+void lxer_set_new_tracker(lxer_header*lh,int tracker){
+	if(tracker < lh->stream_out_len){
+		lh->lxer_tracker = tracker;
+	}
+}
+
+char* lxer_get_string_representation(LXR_TOKENS tok){
+	return token_table_lh[tok];
 }
 
 
@@ -686,6 +700,79 @@ bool lxer_misc_expect_misc(lxer_header*lh){
 	return false; 
 }
 
+
+
+void lxer_get_compounds(){
+	size_t i=0;
+	while(compound_exp[i]->len != 0){
+		printf("Compound in line %zu: \n", i);
+		printf("Sequence: ");
+		for(size_t j=0;j<compound_exp[i]->len; j++){
+			printf("[%u] = '%s', ", compound_exp[i]->token_chain[j],token_table_lh[compound_exp[i]->token_chain[j]]);
+		}
+		printf(" | ");
+		printf("final expression: '");
+		for(size_t j=0;j<compound_exp[i]->len; j++){
+			printf("%s", token_table_lh[compound_exp[i]->token_chain[j]]);
+		}
+		printf("'\n");
+		i+=1;	
+	}
+}
+
+
+CINDEX lxer_expect_compound(lxer_header *lh){
+	size_t i = 0;
+	size_t lxer_tracker = lh->lxer_tracker;
+	bool invalid = false;
+	CINDEX c = CINDEX_NOT_FOUND;
+	int c_len = 0;
+	while(compound_exp[i]->len != 0){
+		for(size_t j=0;j<compound_exp[i]->len && !invalid; j++){
+			if(lxer_get_current_token(lh) != compound_exp[i]->token_chain[j]){
+				invalid = true;
+			}else{
+				lxer_next_token(lh);
+			}
+		}
+		if(!invalid){
+			if(compound_exp[i]->len > c_len){
+				c = (CINDEX)i;
+				c_len = compound_exp[i]->len;
+			}
+		}
+		i+=1;
+		lh->lxer_tracker = lxer_tracker; 
+		invalid = false;
+	}
+	lh->lxer_tracker = lxer_tracker;
+	return c;
+}
+
+int lxer_get_compound_length(CINDEX c){
+	if(c < CINDEX_END){
+		return compound_exp[c]->len;
+	}
+	return -1;
+}
+
+
+
+char* lxer_get_compound_lh(CINDEX c){
+	size_t len;
+	if(c < CINDEX_END){
+		for(size_t i=0;i<compound_exp[c]->len; i++){
+			len += strlen(token_table_lh[compound_exp[c]->token_chain[i]]);
+		}
+		char* buff = (char*)temp_alloc(sizeof(char)*len);
+		buff[0] = '\0';
+		for(size_t i=0;i<compound_exp[c]->len; i++){
+			strcat(buff, token_table_lh[compound_exp[c]->token_chain[i]]);
+		}
+		return buff;
+	}
+	return NULL;
+}
 
 char* lxer_get_rh(lxer_header* lh, bool reverse, bool strict){
 	char* buffer = (char*)arena_alloc(&lh->lxer_ah, sizeof(char)*256);

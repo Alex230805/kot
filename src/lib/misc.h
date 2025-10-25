@@ -42,6 +42,19 @@ typedef struct{
 	size_t size;
 }StringBuilder;
 
+
+typedef struct List_node{
+	struct List_node* prev;
+	void* content;
+	struct List_node* next;
+}List_node;
+
+typedef struct{
+	size_t count;
+	List_node* node;
+	List_node* cache;
+}List_header;
+
 typedef struct Arena_alloc{
 	struct Arena_alloc* next;
 	int obj; // number or object allocated in memory
@@ -161,6 +174,15 @@ u8t hexDigitConverter(char s);
 void write_file(StringBuilder *sb, char *path);
 StringBuilder* read_file(Arena_header*ah,char*path);
 StringBuilder* read_file_no_error(Arena_header*ah,char*path);
+
+List_header* list_alloc();
+List_header* arena_list_alloc(Arena_header* ah);
+List_node* list_node_alloc();
+List_node* arena_list_node_alloc(Arena_header* ah);
+void arena_list_push(Arena_header*ah, List_header* lh, void* data);
+void list_push(List_header* lh, void* data);
+void* list_get_at(List_header* lh,size_t pos);
+void list_free(List_header* lh);
 
 // structure and data types
 

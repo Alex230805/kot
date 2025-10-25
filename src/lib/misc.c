@@ -159,6 +159,98 @@ StringBuilder* arena_sb_alloc(Arena_header* ah){
 	return sbp;
 }
 
+List_node* list_node_alloc(){
+	List_node* node = (List_node*)malloc(sizeof(List_node));
+	node->next = NULL;
+	node->prev = NULL;
+	node->content = NULL;
+	return node;
+}
+
+List_node* arena_list_node_alloc(Arena_header* ah){
+	List_node* node = (List_node*)arena_alloc(ah,sizeof(List_node));
+	node->next = NULL;
+	node->prev = NULL;
+	node->content = NULL;
+	return node;
+}
+
+List_header* list_alloc(){
+	List_header* lh = (List_header*)malloc(sizeof(List_header));
+	lh->count = 0;
+	lh->node = NULL;
+	lh->cache = NULL;
+	return lh;
+}
+
+List_header* arena_list_alloc(Arena_header* ah){
+	List_header* lh = (List_header*)arena_alloc(ah, sizeof(List_header));
+	lh->count = 0;
+	lh->node = NULL;
+	lh->cache = NULL;
+	return lh;
+}
+
+void list_push(List_header* lh, void* data){
+	List_node* node = NULL;
+	lh->cache = lh->node;
+	node = list_node_alloc();
+	if(lh->node != NULL){
+		while(lh->node->next != NULL) lh->node = lh->node->next;
+		lh->node->next = node;
+		node->prev = lh->node;
+		lh->node = lh->cache;
+	}else{
+		lh->node = node;
+		node->prev = node;
+	}
+	node->content = data;
+	lh->count += 1;
+}
+
+void list_free(List_header* lh){
+	List_node* node = lh->node;
+	while(lh->node->next != NULL){
+		lh->node = lh->node->next;
+		list_free(lh);
+	}
+	free(node);
+	node = NULL;
+	return;
+}
+
+void* list_get_at(List_header* lh, size_t pos){
+	if(pos >= lh->count){
+		return NULL;
+	}
+	lh->cache = lh->node;
+	for(size_t i=0;i<pos;i++){
+		if(lh->node->next != NULL){
+			lh->node = lh->node->next;
+		}
+	}
+	List_node* node = lh->node;
+	lh->node  = lh->cache;
+	return node->content;
+}
+
+void arena_list_push(Arena_header*ah, List_header* lh, void* data){
+	List_node* node = NULL;
+	lh->cache = lh->node;
+	node = arena_list_node_alloc(ah);
+	if(lh->node != NULL){
+		while(lh->node->next != NULL) lh->node = lh->node->next;
+		lh->node->next = node;
+		node->prev = lh->node;
+		lh->node = lh->cache;
+	}else{
+		lh->node = node;
+		node->prev = node;
+	}
+	node->content = data;
+	lh->count += 1;
+}
+
 void sb_append(StringBuilder* sb, char* string){
 	int mult_factor = 1;
 	if(sb->string == NULL && sb->size == 0){
@@ -170,8 +262,9 @@ void sb_append(StringBuilder* sb, char* string){
 	if(strlen(string) > sb->size - sb->len){ 
 		while((sb->size*mult_factor - sb->len) <= strlen(string) ){ mult_factor += 1; }
 		char* buffer = (char*)malloc(sizeof(char)*(sb->size*mult_factor)+1);
-		memcpy(buffer,sb->string,sizeof(char*)*sb->len);
+		memcpy(buffer, sb->string, strlen(sb->string));
 		sb->size *= mult_factor+1;
+		free(sb->string);
 		sb->string = buffer;
 	}
 	memcpy(&sb->string[sb->len], string, sizeof(char)*strlen(string));
@@ -331,9 +424,5 @@ void error_print_error(error_handler *eh, const print_set pp){
 		fprintf(stderr, "\n");
 	}
 }
-
-
-
-
 
 

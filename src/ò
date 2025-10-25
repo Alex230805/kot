@@ -34,45 +34,10 @@
 	printf("Parsing of instruction '[%d] = %s' and behaviour is under implementation", bytecode, string);\
 	assert(0);
 
-
-#define SWITCH_SCOPE(ass_type)\
-	do{\
-		scope *new_scope = (scope*)arena_alloc(ah, sizeof(scope));\
-		arena_list_push(ah,kotvm.cache_scope->list,new_scope);\
-		new_scope->master = kotvm.cache_scope;\
-		new_scope->type = ass_type;\
-		new_scope->list = (List_header*)arena_alloc(ah, sizeof(List_header));\
-		new_scope->var_def = (char**)arena_alloc(ah,sizeof(char*)*DEF_GET_ARR_SIZE);\
-		new_scope->var_def_tracker = 0;\
-		new_scope->var_def_size = DEF_GET_ARR_SIZE;\
-		kotvm.cache_scope = new_scope;\
-	}while(0);
-
-
-#define KOT_PUSH_VAR_DEC(kot_type, name, arg_0, arg_1,arg_2, is_fn)\
-	do{\
-		if(!kot_globl_variable_already_present(name)){\
-			if(kotvm.cache_scope->type == FUNC){\
-				if(!kot_variable_already_present(name)){\
-					kot_push_variable_def(ah, name);\
-					kot_push_instruction(ah,kot_type, name, arg_0, arg_1,arg_2, is_fn);\
-				}else{\
-					KOT_ERROR("Variable already defined");\
-				}\
-			}else{\
-				kot_push_globl_variable_def(ah, name);\
-				kot_push_instruction(ah, kot_type, name, arg_0, arg_1,arg_2, is_fn);\
-			}\
-		}else{\
-			KOT_ERROR("Variable already defined");\
-		}\
-	}while(0);
-
-
 void kot_init_interpreter(Arena_header* ah){
-	glob_var_def = (char**)arena_alloc(ah,sizeof(char*)*DEF_GET_ARR_SIZE);
-	glob_var_def_tracker = 0;
-	glob_var_def_size = DEF_GET_ARR_SIZE;
+	globl_variable = (char**)arena_alloc(ah,sizeof(char*)*DEF_GET_ARR_SIZE);
+	globl_variable_tracker = 0;
+	globl_variable_size = DEF_GET_ARR_SIZE;
 
 	globl_fn_signature = (fn_signature*)arena_alloc(ah, sizeof(fn_signature)*DEF_GET_ARR_SIZE);
 	globl_fn_signature_tracker = 0;
@@ -100,13 +65,8 @@ void kot_init_vm(Arena_header*ah){
 
 	kotvm.main_scope = (scope*)arena_alloc(ah, sizeof(scope));
 	kotvm.main_scope->list = arena_list_alloc(ah);
-	kotvm.main_scope->master = NULL; 
-	kotvm.main_scope->type = STRT;
-	kotvm.cache_scope = kotvm.main_scope;
+	kotvm.main_scope->master = kotvm.main_scope; 
 
-	kotvm.main_scope->var_def = glob_var_def;
-	kotvm.main_scope->var_def_tracker = glob_var_def_tracker;
-	kotvm.main_scope->var_def_size = glob_var_def_size;
 }
 
 
@@ -128,7 +88,12 @@ int kot_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh
 				}else{
 					size_t ptr = kot_write_mem(ah,string, strlen(string));
 					//printf("String assigned with '%s'\n", string);
-					KOT_PUSH_VAR_DEC(IR_PUSH, name, ptr, 4, strlen(string), false);
+					if(!kot_globl_variable_already_present(name)){
+						kot_push_globl_variable_def(ah, name);
+						kot_push_instruction(ah, IR_PUSH, name, ptr, 4,strlen(string),false, kotvm.cache_scope->list);
+					}else{
+						KOT_ERROR("Variable already defined");
+					}
 				}
 			}
 		}else{
@@ -141,7 +106,12 @@ int kot_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh
 				KOT_ERROR_PRECISE("Not a valid variable declaration, the following value is not an integer");
 			}else{
 				//printf("Variable '%s' assigned with '%d'\n", name,atoi(args));
-				KOT_PUSH_VAR_DEC(IR_PUSH, name, atoi(args), 4, 0, false);
+				if(!kot_globl_variable_already_present(name)){
+					kot_push_globl_variable_def(ah, name);
+					kot_push_instruction(ah, IR_PUSH, name, atoi(args), 4, 0, false, kotvm.cache_scope->list);
+				}else{
+					KOT_ERROR("Variable already defined");
+				}
 			}
 		}else{
 			KOT_ERROR_PRECISE("Not a valid assignment or incomplete syntax");
@@ -167,8 +137,15 @@ int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,
 			fn = kot_define_fn(ah,name,0, NULL);
 			if(!kot_fn_already_declared(*fn)){
 				kot_push_fn_dec(ah, *fn);
-				kot_push_instruction(ah, IR_TAG,fn->name, 0,0,0,true);
-				SWITCH_SCOPE(FUNC);	
+				kot_push_instruction(ah, IR_TAG,fn->name, 0,0,0,true, kotvm.cache_scope->list);
+				
+				scope *new_scope = (scope*)arena_alloc(ah, sizeof(scope));
+				arena_list_push(ah,kotvm.cache_scope->list,new_scope);
+				new_scope->master = kotvm.cache_scope;
+				new_scope->type = FUNC;
+				new_scope->list = (List_header*)arena_alloc(ah, sizeof(List_header));
+				kotvm.cache_scope = new_scope;
+
 			}else{
 				KOT_ERROR("Function already defined");
 			}
@@ -185,7 +162,7 @@ int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,
 
 /* PROCESSING EXPRESSION THAT START WITH A TYPE */
 
-int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
+int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh, bool* function_open){
 	int status = 0;
 	LXR_TOKENS token, next_token, type, cache_token; 
 	KOT_PARSER_REFRESH();
@@ -202,14 +179,20 @@ int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 				status = kot_argument_processor(ah,lh,eh,type);
 				break;
 			case LXR_OPEN_BRK:
-				if(kotvm.cache_scope->type == STRT){
+				if(!*function_open){
 					status = kot_function_processor(ah, lh, eh, name, type);
+					*function_open = true;
 				}else{
 					KOT_ERROR("You cannot declare a function scope inside another function body");
 				}
 				break;
 			case LXR_SEMICOLON:
-				KOT_PUSH_VAR_DEC(IR_PUSH, name, 0, 4, 0, false);
+				if(!kot_globl_variable_already_present(name)){
+					kot_push_globl_variable_def(ah, name);
+					kot_push_instruction(ah, IR_PUSH, name, 0, 4, 0, false, kotvm.cache_scope->list);
+				}else{
+					KOT_ERROR("Variable already defined");
+				}
 				break;
 			default: 
 				KOT_SYNTAX_ERR();
@@ -226,27 +209,29 @@ int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh, bool console){
 	LXR_TOKENS token, next_token, cache_token;
 	int status = 0;
+	static bool function_open = false;
+	kotvm.cache_scope = kotvm.main_scope;
 	if(lh->stream_out_len < 2){
 		if(!console){
 			KOT_ERROR("Empty file!");
 			return 0;
 		}
 	}
+	
 	if(DEBUG) lxer_get_lxer_content(lh);
 	while(status == 0 && lxer_get_current_token(lh) != TOKEN_TABLE_END){
 		token = lxer_get_current_token(lh);
 		next_token = lxer_get_next_token(lh);
 		if(lxer_is_type(token)){
-			status = kot_type_processor(ah, lh, eh);
+			status = kot_type_processor(ah, lh, eh, &function_open);
 		}
 		if(lxer_is_brk(token)){
+			if(token ==	LXR_OPEN_CRL_BRK){
+				printf("Current scope: %p, master scope: %p\n", kotvm.cache_scope, kotvm.cache_scope->master);
+			}
 			if(token == LXR_CLOSE_CRL_BRK){
-				if(kotvm.cache_scope->master == NULL){
-					KOT_ERROR("Brachets has no start point or it's out of place");
-				}else{
-					printf("Going up the hierarchy to %p\n", kotvm.cache_scope->master);
-					kotvm.cache_scope = kotvm.cache_scope->master; // going up the hierarchy
-				}	
+				kotvm.cache_scope = kotvm.cache_scope->master; // going up the hierarchy
+				printf("Going up the hierarchy to %p\n", kotvm.cache_scope);
 			}
 		}
 		lxer_next_token(lh);
@@ -256,6 +241,7 @@ int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh, bool console
 	}
 	return status;
 }
+
 
 
 void kot_get_program_list(FILE* filestream){
@@ -306,7 +292,7 @@ void kot_get_memory_dump(){
 	fprintf(stdout, "\n");
 }
 
-void kot_push_instruction(Arena_header* ah, kot_ir inst, char* label, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2, bool is_fn){
+void kot_push_instruction(Arena_header* ah, kot_ir inst, char* label, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2, bool is_fn, List_header* list){
 	inst_slice *is = (inst_slice*)arena_alloc(ah, sizeof(inst_slice));
 	is->label = label;
 	is->bytecode = inst;
@@ -314,8 +300,18 @@ void kot_push_instruction(Arena_header* ah, kot_ir inst, char* label, uint32_t a
 	is->arg_1 = arg_1;
 	is->arg_2 = arg_2;
 	is->fn = is_fn;
-	arena_list_push(ah, kotvm.cache_scope->list, is);
-	//if(!is_fn) printf("Pushing new instruction inside scope %p\n", kotvm.cache_scope);
+	arena_list_push(ah, list, is);
+}
+
+void kot_push_globl_variable_def(Arena_header* ah,char* name){
+	if(globl_variable_tracker += 1 >= globl_variable_size){
+		char** old_arr = globl_variable;
+		globl_variable = (char**)arena_alloc(ah,sizeof(char*)*globl_variable_size*2);
+		globl_variable_size*=2;
+		memcpy(globl_variable, old_arr, sizeof(char*)*globl_variable_tracker);
+	}
+	globl_variable[globl_variable_tracker] = name;
+	globl_variable_tracker += 1;
 }
 
 
@@ -323,54 +319,16 @@ inst_slice kot_get_current_inst(){
 	return kotvm.bytecode_array[kotvm.program_counter];
 }
 
-void kot_push_globl_variable_def(Arena_header* ah,char* name){
-	//NOTY("GLOBAL ACTION", "Pushing local variable '%s'", name);
-	if(glob_var_def_tracker += 1 >= glob_var_def_size){
-		char** old_arr = glob_var_def;
-		glob_var_def = (char**)arena_alloc(ah,sizeof(char*)*glob_var_def_size*2);
-		glob_var_def_size*=2;
-		memcpy(glob_var_def, old_arr, sizeof(char*)*glob_var_def_tracker);
-	}
-	glob_var_def[glob_var_def_tracker] = name;
-	glob_var_def_tracker += 1;
-	kotvm.main_scope->var_def = glob_var_def;
-	kotvm.main_scope->var_def_tracker = glob_var_def_tracker;
-	kotvm.main_scope->var_def_size = glob_var_def_size;
-}
-
 bool kot_globl_variable_already_present(char* name){
-	for(size_t i=0;i<glob_var_def_tracker; i++){
-		if(glob_var_def[i] != NULL){
-			if(strcmp(name, glob_var_def[i])==0){
+	for(size_t i=0;i<globl_variable_tracker; i++){
+		if(globl_variable[i] != NULL){
+			if(strcmp(name, globl_variable[i])==0){
 				return true;
 			}
 		}
 	}
 	return false;
 }
-void kot_push_variable_def(Arena_header* ah,char* name){
-	//NOTY("LOCAL ACTION", "Pushing local variable '%s'", name);
-	if(kotvm.cache_scope->var_def_tracker += 1 >= kotvm.cache_scope->var_def_size){
-		char** old_arr = kotvm.cache_scope->var_def;
-		kotvm.cache_scope->var_def = (char**)arena_alloc(ah,sizeof(char*)*kotvm.cache_scope->var_def_size*2);
-		kotvm.cache_scope->var_def_size*=2;
-		memcpy(kotvm.cache_scope->var_def, old_arr, sizeof(char*)*kotvm.cache_scope->var_def_tracker);
-	}
-	kotvm.cache_scope->var_def[kotvm.cache_scope->var_def_tracker] = name;
-	kotvm.cache_scope->var_def_tracker += 1;
-}
-
-bool kot_variable_already_present(char* name){
-	for(size_t i=0;i<kotvm.cache_scope->var_def_tracker; i++){
-		if(kotvm.cache_scope->var_def[i] != NULL){
-			if(strcmp(name, kotvm.cache_scope->var_def[i])==0){
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
 
 
 void kot_push_fn_dec(Arena_header* ah, fn_signature fn){

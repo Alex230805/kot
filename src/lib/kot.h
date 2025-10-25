@@ -27,8 +27,8 @@
 	X(IR_SB)\
 	X(IR_SH)\
 	X(IR_SW)\
-	X(IR_RET)
-
+	X(IR_RET)\
+	X(IR_HALT)
 
 #define X(name) name,
 
@@ -64,6 +64,7 @@ static char* ir_table_lh[] = {
 	[IR_SB] =	"sb",
 	[IR_SH] =	"sh",
 	[IR_SW] =	"sw",
+	[IR_HALT] = "halt",
 	[IR_TAG] =  "tag/fn-placeholder",
 	[IR_ILLEGAL] = "illegal"
 };
@@ -78,12 +79,25 @@ typedef struct{
 	uint32_t arg_2;
 }inst_slice;
 
-typedef struct{
-	inst_slice* program;
-	size_t tracker;
-	size_t size;
-}binary_rp;
+#define STRT 0
+#define COND 1
+#define FUNC 2
 
+typedef struct scope{
+	int type;
+	char** var_def;
+	size_t var_def_tracker;
+	size_t var_def_size;
+	struct scope* master; // scope from which this depend on
+	List_header* list; // list of instruction
+}scope;
+
+typedef struct{
+	int type;
+	scope* aster;
+	scope* branch_true;
+	scope* branch_false;
+}scope_branch;
 
 typedef struct{
 	uint32_t program_counter;
@@ -91,17 +105,21 @@ typedef struct{
 	uint32_t gpr[GPR_NUM];
 	float fr[GPR_NUM];
 	
-	binary_rp bytecode_array;
-	
+	inst_slice* bytecode_array;
+	size_t bytecode_array_size;
+	size_t bytecode_array_tracker;
+
 	char *memory;
 	uint32_t def_memory_size;
 	uint32_t memory_tracker;
+
+	scope *main_scope;
+	scope *cache_scope;
 
 	char** program_source;
 	size_t program_source_size;
 	size_t program_source_tracker;
 }vkot_machine;
-
 
 
 typedef enum{
@@ -127,42 +145,46 @@ static char* type_table_lh[] = {
 	[KOT_UNDEFINED] = "undefined type"
 };
 
-
-
 typedef struct{
 	char* name;
 	size_t param_len;
 	KOT_TYPE* param_type;
 }fn_signature;
 
-
 static vkot_machine kotvm;
 static size_t line;
 
-static char** globl_variable;
-static size_t globl_variable_tracker;
-static size_t globl_variable_size;
+static	char** glob_var_def;
+static	size_t glob_var_def_tracker;
+static	size_t glob_var_def_size;
+
 
 static fn_signature* globl_fn_signature;
 static size_t globl_fn_signature_tracker;
 static size_t globl_fn_signature_size;
 
-
 void kot_init_vm(Arena_header*ah);
 void kot_init_interpreter(Arena_header* ah);
-
 
 void kot_push_globl_variable_def(Arena_header* ah,char* name);
 bool kot_globl_variable_already_present(char* name);
 
+void kot_push_variable_def(Arena_header* ah,char* name);
+bool kot_variable_already_present(char* name);
 
 void kot_push_fn_dec(Arena_header* ah, fn_signature fn);
 bool kot_fn_already_declared(fn_signature fn);
 fn_signature* kot_define_fn(Arena_header* ah,char* name,int param_len, KOT_TYPE* param_type);
+inst_slice kot_get_current_inst();
+void kot_pc_inc();
+
 
 int kot_parse(Arena_header* ah,lxer_header* lh, error_handler *eh, bool console);
+void kot_run();
+bool kot_single_run(inst_slice inst);
 
-int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh, bool *function_open);
+
+int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh);
 int kot_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh, LXR_TOKENS type);
 int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,char*name, LXR_TOKENS type);
 
@@ -172,6 +194,18 @@ void kot_get_bytecode();
 void kot_get_memory_dump();
 void kot_push_instruction(Arena_header* ah, kot_ir inst, char* label, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2, bool is_fn);
 void kot_get_program_list(FILE* filestream);
+
+#define KOT_R_I int 
+
+#define KOT_FN_DEFINE(name)\
+	kot_##name(uint32_t arg_0,uint32_t  arg_2,uint32_t arg_3)
+
+#define KOT_FN_CALL(name)\
+	kot_##name(inst.arg_0, inst.arg_1, inst.arg_2)
+
+KOT_R_I KOT_FN_DEFINE(push);
+KOT_R_I KOT_FN_DEFINE(pull);
+
 
 
 #ifndef KOT_C
