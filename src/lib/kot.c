@@ -176,6 +176,18 @@ int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,
 int kot_statement_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 	int status = 0;
 	KOT_NOT_IMPLEMENTED("Statement instruction processor",NULL);
+
+	switch(){
+		case LXR_FOR_STATEMENT:
+			KOT_NOT_IMPLEMENTED("if statement");
+			break;
+		case LXR_RET_STATEMENT:
+			KOT_NOT_IMPLEMENTED("return statement");
+			break;	
+		default: 
+			KOT_ERROR("Syntax error");
+			break;
+	}
 	return status;
 }
 
@@ -235,6 +247,7 @@ int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh, bool console
 	while(status == 0 && lxer_get_current_token(lh) != TOKEN_TABLE_END){
 		token = lxer_get_current_token(lh);
 		next_token = lxer_get_next_token(lh);
+
 		if(lxer_is_type(token)){
 			status = kot_type_processor(ah, lh, eh);
 		}
@@ -249,6 +262,9 @@ int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh, bool console
 					printf("Going up the hierarchy to %p\n", kotvm.cache_scope->master);
 					kotvm.cache_scope = kotvm.cache_scope->master; // going up the hierarchy
 				}	
+			}
+			if(token == LXR_OPEN_BRK){
+				KOT_NOT_IMPLEMENTED("Function call", NULL);
 			}
 		}
 		lxer_next_token(lh);
