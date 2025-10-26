@@ -180,12 +180,13 @@ void kot_pc_inc();
 
 
 int kot_parse(Arena_header* ah,lxer_header* lh, error_handler *eh, bool console);
+
 void kot_run();
 bool kot_single_run(inst_slice inst);
 
 
 int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh);
-int kot_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh, LXR_TOKENS type);
+int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh, LXR_TOKENS type);
 int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,char*name, LXR_TOKENS type);
 
 void kot_set_line(size_t line);
