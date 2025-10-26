@@ -188,6 +188,7 @@ bool kot_single_run(inst_slice inst);
 int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh);
 int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh, LXR_TOKENS type);
 int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,char*name, LXR_TOKENS type);
+int kot_statement_processor(Arena_header* ah, lxer_header* lh, error_handler *eh);
 
 void kot_set_line(size_t line);
 size_t kot_write_mem(Arena_header* ah,char* string, int size);

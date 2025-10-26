@@ -40,6 +40,9 @@
 	printf("Parsing of instruction '[%d] = %s' and behaviour is under implementation", bytecode, string);\
 	assert(0);
 
+#define KOT_NOT_IMPLEMENTED(message, ...)\
+	TODO(message, __VA_ARGS__);\
+	assert(0)
 
 #define SWITCH_SCOPE(ass_type)\
 	do{\

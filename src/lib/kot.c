@@ -90,12 +90,10 @@ int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_ha
 
 int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh, char* name, LXR_TOKENS type){
 	int status = 0;
+	int args = 0;
 	LXR_TOKENS token, next_token;
 	fn_signature* fn = NULL;
-
 	KOT_TYPE* param_type = (KOT_TYPE*)arena_alloc(ah, sizeof(KOT_TYPE)*512);
-	size_t param_len = 0;
-	
 	KOT_PARSER_REFRESH();
 	KOT_PARSER_NEXT();
 	if(token == LXR_CLOSE_BRK){
@@ -112,14 +110,75 @@ int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,
 			KOT_SYNTAX_ERR();
 		}
 	}else{
-		TODO("Function argument processor", NULL);
-		assert(0);
+		KOT_TYPE arg_type;
+		while(lxer_is_type(token) && status == 0){
+			if(next_token == LXR_COMMA || next_token == LXR_CLOSE_BRK){
+				switch(token){
+					case LXR_STRING_TYPE: 
+						arg_type = KOT_STR;
+						break;
+					case LXR_INT_TYPE: 
+						arg_type = KOT_INT;
+						break;
+					case LXR_DOUBLE_TYPE:
+						arg_type = KOT_DOUBLE;
+					   	break;
+					case LXR_FLOAT_TYPE: 
+						arg_type = KOT_FLOAT;
+						break;
+					case LXR_CHAR_TYPE:
+						arg_type = KOT_CHAR;	
+						break;
+					case LXR_VOID_TYPE: 
+						arg_type = KOT_VOID;
+						break;
+					default: 
+						KOT_ERROR("Undefined type or currently not supported syntax");
+						break;
+				}
+				if(status == 1) break;
+				char* param_name = lxer_get_rh(lh, false, true);
+				//printf("parameter name: %s\n", param_name);
+				if(param_name != NULL && strlen(param_name) > 0){
+					param_type[args] = arg_type; 
+					args += 1;
+					KOT_PARSER_NEXT();
+					KOT_PARSER_NEXT();
+				}else{
+					KOT_ERROR("Parameter with no name");
+				}
+			}else{
+				KOT_ERROR("Invalid function signature");
+				break;
+			}
+		}
+
+		lxer_increase_tracker(lh,-1);
+		KOT_PARSER_REFRESH();
+		if(status == 0){
+			if(next_token == LXR_OPEN_CRL_BRK){
+				fn = kot_define_fn(ah,name,args, param_type);
+				if(!kot_fn_already_declared(*fn)){
+					kot_push_fn_dec(ah, *fn);
+					kot_push_instruction(ah, IR_TAG,fn->name, 0,0,0,true);
+					SWITCH_SCOPE(FUNC);	
+				}else{
+					KOT_ERROR("Function already defined");
+				}
+			}else{
+				KOT_SYNTAX_ERR();
+			}
+		}
 	}
 	return status;
 }
 
+int kot_statement_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
+	int status = 0;
+	KOT_NOT_IMPLEMENTED("Statement instruction processor",NULL);
+	return status;
+}
 
-/* PROCESSING EXPRESSION THAT START WITH A TYPE */
 
 int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 	int status = 0;
@@ -178,6 +237,9 @@ int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh, bool console
 		next_token = lxer_get_next_token(lh);
 		if(lxer_is_type(token)){
 			status = kot_type_processor(ah, lh, eh);
+		}
+		if(lxer_is_statement(token)){
+			status = kot_statement_processor(ah, lh, eh);
 		}
 		if(lxer_is_brk(token)){
 			if(token == LXR_CLOSE_CRL_BRK){
