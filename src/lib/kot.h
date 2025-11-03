@@ -6,9 +6,13 @@
 #include "misc.h"
 
 #define GPR_NUM 32
+
 #define DEF_PROGRAM_SIZE 64
-#define DEF_MEMORY_SIZE 0xFF
-#define DEF_STACK_INIT	0x01000
+#define DEF_MEMORY_SIZE 0xFFFFF
+
+#define DEF_STACK_INIT	0x0FFFF
+#define DEF_HEAP_INIT	0x10000
+
 #define DEF_SOURCE_SIZE  256 // intended as line of code, not individual character
 #define DEF_GET_ARR_SIZE 256
 
@@ -101,7 +105,7 @@ typedef struct{
 
 typedef struct{
 	uint32_t program_counter;
-	uint32_t stack_pointer;
+	int32_t stack_pointer;
 	uint32_t gpr[GPR_NUM];
 	float fr[GPR_NUM];
 	
@@ -109,7 +113,7 @@ typedef struct{
 	size_t bytecode_array_size;
 	size_t bytecode_array_tracker;
 
-	char *memory;
+	uint8_t *memory;
 	uint32_t def_memory_size;
 	uint32_t memory_tracker;
 
@@ -186,12 +190,16 @@ bool kot_single_run(inst_slice inst);
 
 
 int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh);
-int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh, LXR_TOKENS type);
+int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh, char*name, LXR_TOKENS type);
 int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,char*name, LXR_TOKENS type);
 int kot_statement_processor(Arena_header* ah, lxer_header* lh, error_handler *eh);
 
 void kot_set_line(size_t line);
-size_t kot_write_mem(Arena_header* ah,char* string, int size);
+
+void kot_push_stack(uint8_t* data, int size);
+uint8_t* kot_pull_stack(Arena_header* ah,int size);
+size_t kot_write_heap(Arena_header* ah,uint8_t* data, int size);
+
 void kot_get_bytecode();
 void kot_get_memory_dump();
 void kot_push_instruction(Arena_header* ah, kot_ir inst, char* label, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2, bool is_fn);

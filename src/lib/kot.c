@@ -26,10 +26,9 @@ void kot_init_vm(Arena_header*ah){
 	
 	kotvm.memory = (char*)arena_alloc(ah, sizeof(char)*DEF_MEMORY_SIZE);
 	kotvm.def_memory_size = DEF_MEMORY_SIZE;
-	kotvm.memory_tracker = 0;
-
+	kotvm.memory_tracker = DEF_HEAP_INIT;
 	kotvm.stack_pointer = DEF_STACK_INIT;
-	
+
 	kotvm.program_source = (char**)arena_alloc(ah, sizeof(char*)*DEF_SOURCE_SIZE);
 	kotvm.program_source_size = DEF_SOURCE_SIZE;
 	kotvm.program_source_tracker = 0;
@@ -46,11 +45,10 @@ void kot_init_vm(Arena_header*ah){
 }
 
 
-int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh, LXR_TOKENS type){
+int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh, char* name,LXR_TOKENS type){
 	int status = 0;
 	LXR_TOKENS token, next_token;
 	KOT_PARSER_REFRESH();
-	char* name = lxer_get_rh(lh, true, true);
 	if(type == LXR_STRING_TYPE){
 		if(next_token == LXR_DOUBLE_QUOTE){
 			KOT_PARSER_NEXT();
@@ -62,23 +60,20 @@ int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_ha
 				if(next_token != LXR_SEMICOLON){
 					KOT_ERROR_PRECISE("Missing semicolon");
 				}else{
-					size_t ptr = kot_write_mem(ah,string, strlen(string));
-					//printf("String assigned with '%s'\n", string);
+					size_t ptr = kot_write_heap(ah,string, strlen(string));
+					printf("Variable '%s' assigned with '%s'\n", name, string);
 					KOT_PUSH_VAR_DEC(IR_PUSH, name, ptr, 4, strlen(string), false);
 				}
 			}
 		}else{
-			KOT_ERROR_PRECISE("Not a valid string implicit definition");
+			KOT_ERROR_PRECISE("Not a valid implicit string definition");
 		}
 	}else{
-		if(next_token == LXR_SEMICOLON){
-			char* args = lxer_get_rh(lh,false, true);
-			if(!args || strchr(args, ' ') != NULL){
-				KOT_ERROR_PRECISE("Not a valid variable declaration, the following value is not an integer");
-			}else{
-				//printf("Variable '%s' assigned with '%d'\n", name,atoi(args));
-				KOT_PUSH_VAR_DEC(IR_PUSH, name, atoi(args), 4, 0, false);
-			}
+		if(next_token == LXR_WORD){
+			KOT_PARSER_NEXT();
+			char* arg =  lxer_get_word(lh);
+			printf("Variable '%s' assigned with '%d'\n", name, atoi(arg));
+			KOT_PUSH_VAR_DEC(IR_PUSH, name, atoi(arg), 4, 0, false);
 		}else{
 			KOT_ERROR_PRECISE("Not a valid assignment or incomplete syntax");
 		}
@@ -112,62 +107,63 @@ int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,
 	}else{
 		KOT_TYPE arg_type;
 		while(lxer_is_type(token) && status == 0){
-			if(next_token == LXR_COMMA || next_token == LXR_CLOSE_BRK){
-				switch(token){
-					case LXR_STRING_TYPE: 
-						arg_type = KOT_STR;
-						break;
-					case LXR_INT_TYPE: 
-						arg_type = KOT_INT;
-						break;
-					case LXR_DOUBLE_TYPE:
-						arg_type = KOT_DOUBLE;
-					   	break;
-					case LXR_FLOAT_TYPE: 
-						arg_type = KOT_FLOAT;
-						break;
-					case LXR_CHAR_TYPE:
-						arg_type = KOT_CHAR;	
-						break;
-					case LXR_VOID_TYPE: 
-						arg_type = KOT_VOID;
-						break;
-					default: 
-						KOT_ERROR("Undefined type or currently not supported syntax");
-						break;
-				}
-				if(status == 1) break;
-				char* param_name = lxer_get_rh(lh, false, true);
-				//printf("parameter name: %s\n", param_name);
-				if(param_name != NULL && strlen(param_name) > 0){
+			switch(token){
+				case LXR_STRING_TYPE: 
+					arg_type = KOT_STR;
+					break;
+				case LXR_INT_TYPE: 
+					arg_type = KOT_INT;
+					break;
+				case LXR_DOUBLE_TYPE:
+					arg_type = KOT_DOUBLE;
+					break;
+				case LXR_FLOAT_TYPE: 
+					arg_type = KOT_FLOAT;
+					break;
+				case LXR_CHAR_TYPE:
+					arg_type = KOT_CHAR;	
+					break;
+				case LXR_VOID_TYPE: 
+					arg_type = KOT_VOID;
+					break;
+				case LXR_WORD:
+					KOT_ERROR_PRECISE("Custom type definition not implemented yet");
+					break;
+				default: 
+					KOT_ERROR("Undefined type or currently not supported syntax");
+					break;
+			}
+
+			if(next_token == LXR_WORD){
+				KOT_PARSER_NEXT();
+				char* name = lxer_get_word(lh);	
+				KOT_PARSER_REFRESH();
+				if(next_token == LXR_COMMA || next_token == LXR_CLOSE_BRK){
 					param_type[args] = arg_type; 
 					args += 1;
 					KOT_PARSER_NEXT();
 					KOT_PARSER_NEXT();
 				}else{
-					KOT_ERROR("Parameter with no name");
+					KOT_ERROR("Invalid function signature");
+					break;
 				}
 			}else{
-				KOT_ERROR("Invalid function signature");
-				break;
+				KOT_ERROR("Parameter has no name");
 			}
 		}
-
 		lxer_increase_tracker(lh,-1);
 		KOT_PARSER_REFRESH();
-		if(status == 0){
-			if(next_token == LXR_OPEN_CRL_BRK){
-				fn = kot_define_fn(ah,name,args, param_type);
-				if(!kot_fn_already_declared(*fn)){
-					kot_push_fn_dec(ah, *fn);
-					kot_push_instruction(ah, IR_TAG,fn->name, 0,0,0,true);
-					SWITCH_SCOPE(FUNC);	
-				}else{
-					KOT_ERROR("Function already defined");
-				}
+		if(next_token == LXR_OPEN_CRL_BRK){
+			fn = kot_define_fn(ah,name,args, param_type);
+			if(!kot_fn_already_declared(*fn)){
+				kot_push_fn_dec(ah, *fn);
+				kot_push_instruction(ah, IR_TAG,fn->name, 0,0,0,true);
+				SWITCH_SCOPE(FUNC);	
 			}else{
-				KOT_SYNTAX_ERR();
+				KOT_ERROR("Function already defined");
 			}
+		}else{
+			KOT_SYNTAX_ERR();
 		}
 	}
 	return status;
@@ -175,17 +171,27 @@ int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,
 
 int kot_statement_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 	int status = 0;
-	KOT_NOT_IMPLEMENTED("Statement instruction processor",NULL);
-
-	switch(){
-		case LXR_FOR_STATEMENT:
-			KOT_NOT_IMPLEMENTED("if statement");
+	LXR_TOKENS token, next_token;
+	KOT_PARSER_REFRESH();
+	if(kotvm.cache_scope->type == STRT){
+		KOT_ERROR_PRECISE("Cannot have a statement outside a function body");
+	}
+	KOT_NOT_IMPLEMENTED("Statement instruction processor");
+	switch(token){
+		case LXR_IF_STATEMENT: 
+			break; 
+		case LXR_WHILE_STATEMENT: 
+			break; 
+		case LXR_SWITCH_STATEMENT: 
+			break; 
+		case LXR_DO_STATEMENT: 
+			break; 
+		case LXR_FOR_STATEMENT: 
+			break; 
+		case LXR_RET_STATEMENT: 
 			break;
-		case LXR_RET_STATEMENT:
-			KOT_NOT_IMPLEMENTED("return statement");
-			break;	
 		default: 
-			KOT_ERROR("Syntax error");
+			KOT_ERROR_PRECISE("Unrecognized statement");
 			break;
 	}
 	return status;
@@ -196,17 +202,22 @@ int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 	int status = 0;
 	LXR_TOKENS token, next_token, type, cache_token; 
 	KOT_PARSER_REFRESH();
-
+	char* name;
+	type = token;
+	if(type == LXR_WORD){
+		KOT_ERROR_PRECISE("Custom type usage is not implemented yet");
+	}
+	KOT_PARSER_NEXT();
+	if(token == LXR_WORD){
+		name = lxer_get_word(lh);
+	}else{
+		KOT_ERROR("No name provided");
+	}
 	if(lxer_is_statement(next_token) || lxer_is_sep(next_token) || lxer_is_brk(next_token)){
-		char* name = lxer_get_rh(lh, false, true);
-		if(!name){
-			KOT_ERROR_PRECISE("No name provided");
-		}
-		type =  token;
 		KOT_PARSER_NEXT();
 		switch(token){
 			case LXR_ASSIGNMENT:
-				status = kot_variable_argument_processor(ah,lh,eh,type);
+				status = kot_variable_argument_processor(ah,lh,eh, name,type);
 				break;
 			case LXR_OPEN_BRK:
 				if(kotvm.cache_scope->type == STRT){
@@ -223,12 +234,8 @@ int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 				break;
 		}
 	}else{
-		if(next_token == TOKEN_TABLE_END){
-			KOT_ERROR("Missing semicolon in variable declaration");
-		}else{
-			KOT_SYNTAX_ERR();
-		}
-	}	
+		KOT_ERROR("Not a valid syntax for variable or function declaration/definition");
+	}
 	return status;
 }
 
@@ -259,12 +266,12 @@ int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh, bool console
 				if(kotvm.cache_scope->master == NULL){
 					KOT_ERROR("Brachets has no start point or it's out of place");
 				}else{
-					printf("Going up the hierarchy to %p\n", kotvm.cache_scope->master);
+					//printf("Going up the hierarchy to %p\n", kotvm.cache_scope->master);
 					kotvm.cache_scope = kotvm.cache_scope->master; // going up the hierarchy
 				}	
 			}
 			if(token == LXR_OPEN_BRK){
-				KOT_NOT_IMPLEMENTED("Function call", NULL);
+				KOT_NOT_IMPLEMENTED("Function call");
 			}
 		}
 		lxer_next_token(lh);

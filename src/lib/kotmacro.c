@@ -10,14 +10,20 @@
 
 
 #define KOT_ERROR_PRECISE(name)\
-	error_push_error(eh,name, line, 2 ,lxer_get_current_pointer(lh),strlen(lxer_get_current_pointer(lh)));\
-	status = 1;
+	if(lxer_get_current_token(lh) == LXR_WORD){\
+		error_push_error(eh,name, lxer_get_current_line(lh), 2,lxer_get_current_pointer(lh),strlen(lxer_get_word(lh)));\
+	}else{\
+		error_push_error(eh,name, lxer_get_current_line(lh), 2,lxer_get_current_pointer(lh),strlen(lxer_get_string_representation(lxer_get_current_token(lh))));\
+	}\
+	status = 1;\
+	return status
 
 #define KOT_ERROR(name)\
-	error_push_error(eh,name, 0, 2 ,NULL,0);\
+	error_push_error(eh,name, lxer_get_current_line(lh), 2 ,NULL,0);\
 	error_print_error(eh,(print_set){true,true,false,false,true,false, false});\
 	eh->tracker = 0;\
-	status = 1;
+	status = 1;\
+	return status;
 
 #define KOT_SYNTAX_ERR()\
 	KOT_ERROR_PRECISE("Syntax error");
@@ -40,9 +46,12 @@
 	printf("Parsing of instruction '[%d] = %s' and behaviour is under implementation", bytecode, string);\
 	assert(0);
 
-#define KOT_NOT_IMPLEMENTED(message, ...)\
-	TODO(message, __VA_ARGS__);\
-	assert(0)
+#define KOT_NOT_IMPLEMENTED(message)\
+	TODO(message, NULL);\
+	arena_free(&eh->ah);\
+	arena_free(ah);\
+	arena_free(&lh->lxer_ah);\
+	exit(69);
 
 #define SWITCH_SCOPE(ass_type)\
 	do{\

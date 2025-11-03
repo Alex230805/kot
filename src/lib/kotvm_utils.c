@@ -170,15 +170,40 @@ void kot_pc_inc(){
 	kotvm.program_counter += 1;
 }
 
-size_t kot_write_mem(Arena_header* ah,char* string, int size){
+void kot_push_stack(uint8_t* data, int size){	
+	for(size_t i=0; i < size; i++){
+		kotvm.memory[kotvm.stack_pointer] = data[i];
+		if(kotvm.stack_pointer + 1 >= DEF_STACK_INIT){
+			kotvm.stack_pointer = 0;
+		}else{
+			kotvm.stack_pointer += 1;
+		}
+	}
+}
+
+uint8_t* kot_pull_stack(Arena_header* ah, int size){
+	uint8_t* buffer = (uint8_t*)arena_alloc(ah, sizeof(uint8_t)*size);
+	for(size_t i=0; i < size; i++){
+		buffer[i] = kotvm.memory[kotvm.stack_pointer];
+		if(kotvm.stack_pointer - 1 < 0){
+			kotvm.stack_pointer = DEF_STACK_INIT;
+		}else{
+			kotvm.stack_pointer -= 1;
+		}
+	}
+	return buffer;
+}
+
+size_t kot_write_heap(Arena_header* ah,uint8_t* data, int size){
 	if(kotvm.memory_tracker + size >= kotvm.def_memory_size){
 		char *old_mem = kotvm.memory;
 		kotvm.memory = (char*)arena_alloc(ah, sizeof(char)*kotvm.def_memory_size*2);
 		kotvm.def_memory_size *= 2;
-		memcpy(kotvm.memory, old_mem,kotvm.memory_tracker);	
+		memcpy(kotvm.memory, old_mem,kotvm.memory_tracker);
 	}
 	size_t ptr = kotvm.memory_tracker;
-	memcpy(kotvm.memory, string, size);
-	kotvm.memory_tracker += size;
+	memcpy(kotvm.memory+ptr, data, size);
+	kotvm.memory[ptr+size] = '\0';
+	kotvm.memory_tracker += size+1;
 	return ptr;
 }

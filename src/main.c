@@ -155,6 +155,7 @@ int main(int argc, char** argv){
 		if(md_out) kot_get_memory_dump();
 		if(ir_out) kot_get_bytecode();
 	}
+	finish();
 	return 0;
 }
 
