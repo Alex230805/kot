@@ -4,14 +4,20 @@
 #include <assert.h>
 #include "ilxer.h"
 #include "misc.h"
+#include <math.h>
 
 #define GPR_NUM 32
 
 #define DEF_PROGRAM_SIZE 64
+
 #define DEF_MEMORY_SIZE 0xFFFFF
 
-#define DEF_STACK_INIT	0x0FFFF
-#define DEF_HEAP_INIT	0x10000
+#define DEF_STACK_INIT		0x0FFFF
+#define DEF_STACK_LIMIT		0x01000
+#define DEF_STK_CALL_INIT	0x00FFF
+#define DEF_STK_CALL_LIMIT	0x00000
+
+#define DEF_HEAP_INIT		0x10000
 
 #define DEF_SOURCE_SIZE  256 // intended as line of code, not individual character
 #define DEF_GET_ARR_SIZE 256
@@ -38,7 +44,6 @@
 
 typedef enum{
 	IR()
-	IR_TAG,
 	IR_ILLEGAL,
 	IR_TABLE_END
 }kot_ir;
@@ -46,7 +51,6 @@ typedef enum{
 
 static kot_ir ir_table[] = {
 	IR()
-	IR_TAG,
 	IR_ILLEGAL,
 	IR_TABLE_END
 };
@@ -69,10 +73,8 @@ static char* ir_table_lh[] = {
 	[IR_SH] =	"sh",
 	[IR_SW] =	"sw",
 	[IR_HALT] = "halt",
-	[IR_TAG] =  "tag/fn-placeholder",
 	[IR_ILLEGAL] = "illegal"
 };
-
 
 typedef struct{
 	char* label;
@@ -104,8 +106,6 @@ typedef struct{
 }scope_branch;
 
 typedef struct{
-	uint32_t program_counter;
-	int32_t stack_pointer;
 	uint32_t gpr[GPR_NUM];
 	float fr[GPR_NUM];
 	
@@ -116,6 +116,9 @@ typedef struct{
 	uint8_t *memory;
 	uint32_t def_memory_size;
 	uint32_t memory_tracker;
+	uint32_t program_counter;
+	int32_t	 stack_pointer;
+	int32_t  call_stack_pointer;
 
 	scope *main_scope;
 	scope *cache_scope;
@@ -132,10 +135,9 @@ typedef enum{
 	KOT_BOOL,
 	KOT_VOID,
 	KOT_STR,
-	KOT_DOUBLE,
 	KOT_FLOAT,
 	KOT_UNDEFINED
-} KOT_TYPE;
+}KOT_TYPE;
 
 
 static char* type_table_lh[] = {
@@ -144,7 +146,6 @@ static char* type_table_lh[] = {
 	[KOT_BOOL] = "bool",
 	[KOT_VOID] = "void",
 	[KOT_STR] = "str",
-	[KOT_DOUBLE] = "double",
 	[KOT_FLOAT] = "float",
 	[KOT_UNDEFINED] = "undefined type"
 };
@@ -193,12 +194,23 @@ int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh);
 int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh, char*name, LXR_TOKENS type);
 int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,char*name, LXR_TOKENS type);
 int kot_statement_processor(Arena_header* ah, lxer_header* lh, error_handler *eh);
+int kot_word_processor(Arena_header* ah, lxer_header* lh, error_handler *eh);
 
+	
 void kot_set_line(size_t line);
+KOT_TYPE kot_get_type_from_token(LXR_TOKENS token);
+
+float kot_process_float_literal(lxer_header* lh);
 
 void kot_push_stack(uint8_t* data, int size);
 uint8_t* kot_pull_stack(Arena_header* ah,int size);
+uint8_t* kot_get_stack(Arena_header* ah, int size);
 size_t kot_write_heap(Arena_header* ah,uint8_t* data, int size);
+
+
+void kot_push_return_ptr(uint32_t ptr);
+uint32_t kot_pull_return_ptr();
+
 
 void kot_get_bytecode();
 void kot_get_memory_dump();

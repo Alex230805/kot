@@ -170,7 +170,7 @@ void kot_pc_inc(){
 	kotvm.program_counter += 1;
 }
 
-void kot_push_stack(uint8_t* data, int size){	
+void kot_push_stack(uint8_t* data, int size){
 	for(size_t i=0; i < size; i++){
 		kotvm.memory[kotvm.stack_pointer] = data[i];
 		if(kotvm.stack_pointer + 1 >= DEF_STACK_INIT){
@@ -185,7 +185,7 @@ uint8_t* kot_pull_stack(Arena_header* ah, int size){
 	uint8_t* buffer = (uint8_t*)arena_alloc(ah, sizeof(uint8_t)*size);
 	for(size_t i=0; i < size; i++){
 		buffer[i] = kotvm.memory[kotvm.stack_pointer];
-		if(kotvm.stack_pointer - 1 < 0){
+		if(kotvm.stack_pointer - 1 < DEF_STACK_LIMIT){
 			kotvm.stack_pointer = DEF_STACK_INIT;
 		}else{
 			kotvm.stack_pointer -= 1;
@@ -194,10 +194,26 @@ uint8_t* kot_pull_stack(Arena_header* ah, int size){
 	return buffer;
 }
 
+
+uint8_t* kot_get_stack(Arena_header* ah, int size){
+	uint32_t og_ptr = kotvm.stack_pointer;
+	uint8_t* buffer = (uint8_t*)arena_alloc(ah, sizeof(uint8_t)*size);
+	for(size_t i=0; i < size; i++){
+		buffer[i] = kotvm.memory[kotvm.stack_pointer];
+		if(kotvm.stack_pointer - 1 < DEF_STACK_LIMIT){
+			kotvm.stack_pointer = DEF_STACK_INIT;
+		}else{
+			kotvm.stack_pointer -= 1;
+		}
+	}
+	kotvm.stack_pointer = og_ptr;
+	return buffer;
+}
+
 size_t kot_write_heap(Arena_header* ah,uint8_t* data, int size){
 	if(kotvm.memory_tracker + size >= kotvm.def_memory_size){
-		char *old_mem = kotvm.memory;
-		kotvm.memory = (char*)arena_alloc(ah, sizeof(char)*kotvm.def_memory_size*2);
+		uint8_t *old_mem = kotvm.memory;
+		kotvm.memory = (uint8_t*)arena_alloc(ah, sizeof(uint8_t)*kotvm.def_memory_size*2);
 		kotvm.def_memory_size *= 2;
 		memcpy(kotvm.memory, old_mem,kotvm.memory_tracker);
 	}
@@ -206,4 +222,29 @@ size_t kot_write_heap(Arena_header* ah,uint8_t* data, int size){
 	kotvm.memory[ptr+size] = '\0';
 	kotvm.memory_tracker += size+1;
 	return ptr;
+}
+
+
+void kot_push_return_ptr(uint32_t ptr){
+	for(size_t i=0; i < 4; i++){
+		kotvm.memory[kotvm.call_stack_pointer] = ptr >> i*8;
+		if(kotvm.call_stack_pointer + 1 >= DEF_STK_CALL_INIT){
+			kotvm.call_stack_pointer = 0;
+		}else{
+			kotvm.call_stack_pointer += 1;
+		}
+	}
+}
+
+uint32_t kot_pull_return_ptr(){	
+	uint32_t kot_cache_fn_pointer = 0;
+	for(size_t i=0; i < 4; i++){
+		kot_cache_fn_pointer = kot_cache_fn_pointer |  kotvm.memory[kotvm.call_stack_pointer] << i*8;
+		if(kotvm.call_stack_pointer - 1 < DEF_STK_CALL_LIMIT){
+			kotvm.call_stack_pointer = DEF_STK_CALL_INIT;
+		}else{
+			kotvm.call_stack_pointer -= 1;
+		}
+	}
+	return kot_cache_fn_pointer; 
 }

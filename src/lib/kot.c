@@ -24,10 +24,11 @@ void kot_init_vm(Arena_header*ah){
 	kotvm.bytecode_array_size = DEF_PROGRAM_SIZE;
 	kotvm.bytecode_array_tracker = 0;
 	
-	kotvm.memory = (char*)arena_alloc(ah, sizeof(char)*DEF_MEMORY_SIZE);
+	kotvm.memory = (uint8_t*)arena_alloc(ah, sizeof(uint8_t)*DEF_MEMORY_SIZE);
 	kotvm.def_memory_size = DEF_MEMORY_SIZE;
 	kotvm.memory_tracker = DEF_HEAP_INIT;
 	kotvm.stack_pointer = DEF_STACK_INIT;
+	kotvm.call_stack_pointer = DEF_STK_CALL_INIT;
 
 	kotvm.program_source = (char**)arena_alloc(ah, sizeof(char*)*DEF_SOURCE_SIZE);
 	kotvm.program_source_size = DEF_SOURCE_SIZE;
@@ -60,9 +61,10 @@ int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_ha
 				if(next_token != LXR_SEMICOLON){
 					KOT_ERROR_PRECISE("Missing semicolon");
 				}else{
-					size_t ptr = kot_write_heap(ah,string, strlen(string));
+					size_t ptr = kotvm.stack_pointer;
+					kot_push_stack((uint8_t*)string, strlen(string));
 					printf("Variable '%s' assigned with '%s'\n", name, string);
-					KOT_PUSH_VAR_DEC(IR_PUSH, name, ptr, 4, strlen(string), false);
+					KOT_PUSH_VAR_DEC(IR_PUSH, name, (uint32_t)kot_get_type_from_token(type),strlen(string), ptr, false);
 				}
 			}
 		}else{
@@ -72,8 +74,13 @@ int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_ha
 		if(next_token == LXR_WORD){
 			KOT_PARSER_NEXT();
 			char* arg =  lxer_get_word(lh);
-			printf("Variable '%s' assigned with '%d'\n", name, atoi(arg));
-			KOT_PUSH_VAR_DEC(IR_PUSH, name, atoi(arg), 4, 0, false);
+			float arg_f = 0.00;
+			int arg_i = atoi(arg);
+			if(type == LXR_FLOAT_TYPE){
+				arg_f = kot_process_float_literal(lh);
+				arg_i = *(uint32_t*)&arg_f;
+			}
+			KOT_PUSH_VAR_DEC(IR_PUSH, name, (uint32_t)kot_get_type_from_token(type), 4, arg_i, false);
 		}else{
 			KOT_ERROR_PRECISE("Not a valid assignment or incomplete syntax");
 		}
@@ -96,7 +103,6 @@ int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,
 			fn = kot_define_fn(ah,name,0, NULL);
 			if(!kot_fn_already_declared(*fn)){
 				kot_push_fn_dec(ah, *fn);
-				kot_push_instruction(ah, IR_TAG,fn->name, 0,0,0,true);
 				SWITCH_SCOPE(FUNC);	
 			}else{
 				KOT_ERROR("Function already defined");
@@ -107,33 +113,11 @@ int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,
 	}else{
 		KOT_TYPE arg_type;
 		while(lxer_is_type(token) && status == 0){
-			switch(token){
-				case LXR_STRING_TYPE: 
-					arg_type = KOT_STR;
-					break;
-				case LXR_INT_TYPE: 
-					arg_type = KOT_INT;
-					break;
-				case LXR_DOUBLE_TYPE:
-					arg_type = KOT_DOUBLE;
-					break;
-				case LXR_FLOAT_TYPE: 
-					arg_type = KOT_FLOAT;
-					break;
-				case LXR_CHAR_TYPE:
-					arg_type = KOT_CHAR;	
-					break;
-				case LXR_VOID_TYPE: 
-					arg_type = KOT_VOID;
-					break;
-				case LXR_WORD:
-					KOT_ERROR_PRECISE("Custom type definition not implemented yet");
-					break;
-				default: 
-					KOT_ERROR("Undefined type or currently not supported syntax");
-					break;
+			if(token == LXR_WORD){
+				KOT_ERROR_PRECISE("Custom type definition not implemented yet");
+			}else{
+				arg_type = kot_get_type_from_token(token);
 			}
-
 			if(next_token == LXR_WORD){
 				KOT_PARSER_NEXT();
 				char* name = lxer_get_word(lh);	
@@ -157,7 +141,6 @@ int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,
 			fn = kot_define_fn(ah,name,args, param_type);
 			if(!kot_fn_already_declared(*fn)){
 				kot_push_fn_dec(ah, *fn);
-				kot_push_instruction(ah, IR_TAG,fn->name, 0,0,0,true);
 				SWITCH_SCOPE(FUNC);	
 			}else{
 				KOT_ERROR("Function already defined");
@@ -168,6 +151,32 @@ int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,
 	}
 	return status;
 }
+
+
+int kot_word_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
+	int status = 0;
+	LXR_TOKENS token, next_token;
+	KOT_PARSER_REFRESH();
+	char* name = lxer_get_word(lh);
+	if(lxer_is_brk(next_token)){
+		if(next_token == LXR_OPEN_BRK){
+			KOT_PARSER_NEXT();
+			if(next_token == LXR_CLOSE_BRK){
+			
+			}else if(next_token == LXR_WORD){
+			
+			}else{
+				KOT_SYNTAX_ERR();
+			}
+		}else{
+			KOT_ERROR("Not a valid function call");
+		}
+	}else{
+		KOT_SYNTAX_ERR();
+	}	
+	return status;
+}
+
 
 int kot_statement_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 	int status = 0;
@@ -204,9 +213,6 @@ int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 	KOT_PARSER_REFRESH();
 	char* name;
 	type = token;
-	if(type == LXR_WORD){
-		KOT_ERROR_PRECISE("Custom type usage is not implemented yet");
-	}
 	KOT_PARSER_NEXT();
 	if(token == LXR_WORD){
 		name = lxer_get_word(lh);
@@ -227,7 +233,7 @@ int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 				}
 				break;
 			case LXR_SEMICOLON:
-				KOT_PUSH_VAR_DEC(IR_PUSH, name, 0, 4, 0, false);
+				KOT_PUSH_VAR_DEC(IR_PUSH, name, (uint32_t)kot_get_type_from_token(type), 4, 0, false);
 				break;
 			default: 
 				KOT_SYNTAX_ERR();
@@ -261,6 +267,9 @@ int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh, bool console
 		if(lxer_is_statement(token)){
 			status = kot_statement_processor(ah, lh, eh);
 		}
+		if(token == LXR_WORD){
+			status = kot_word_processor(ah, lh, eh);
+		}
 		if(lxer_is_brk(token)){
 			if(token == LXR_CLOSE_CRL_BRK){
 				if(kotvm.cache_scope->master == NULL){
@@ -270,9 +279,6 @@ int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh, bool console
 					kotvm.cache_scope = kotvm.cache_scope->master; // going up the hierarchy
 				}	
 			}
-			if(token == LXR_OPEN_BRK){
-				KOT_NOT_IMPLEMENTED("Function call");
-			}
 		}
 		lxer_next_token(lh);
 	}
@@ -280,4 +286,46 @@ int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh, bool console
 		dapush(*ah,kotvm.program_source, kotvm.program_source_tracker,kotvm.program_source_size, char*, lh->source);	
 	}
 	return status;
+}
+
+
+KOT_TYPE kot_get_type_from_token(LXR_TOKENS token){
+	KOT_TYPE arg_type = KOT_UNDEFINED;
+	switch(token){
+		case LXR_STRING_TYPE: 
+			arg_type = KOT_STR;
+			break;
+		case LXR_INT_TYPE: 
+			arg_type = KOT_INT;
+			break;
+		case LXR_FLOAT_TYPE: 
+			arg_type = KOT_FLOAT;
+			break;
+		case LXR_CHAR_TYPE:
+			arg_type = KOT_CHAR;	
+			break;
+		case LXR_VOID_TYPE: 
+			arg_type = KOT_VOID;
+			break;
+		default: break;
+	}
+	return arg_type;
+}
+
+
+
+float kot_process_float_literal(lxer_header* lh){
+	float f;
+	LXR_TOKENS token, next_token;
+	lxer_increase_tracker(lh, -1);
+	KOT_PARSER_REFRESH();
+	if(next_token == LXR_WORD){
+		char* lit = lxer_get_string(lh, LXR_SEMICOLON);
+		char* format = strchr(lit, 'f');
+		if(format != NULL){
+			lit++;
+		}
+		f = (float)atof(lit);
+	}
+	return f;
 }
