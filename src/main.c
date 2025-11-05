@@ -14,6 +14,18 @@ error_handler eh = {0};
 #define DEFAULT_SRC_SIZE 4
 
 
+static int hello_world(){
+	printf("Hello World\n");
+	return 0;
+}
+
+void push_custon_fn(){
+	fn_signature* fn = kot_define_fn(&ah,"hello_world",0, NULL, NULL);
+	if(!kot_link_function(&ah, fn, &hello_world)){
+		printf("Unable to link custom function\n");
+	}
+}
+
 void abort(){
 	error_print_error(&eh,(print_set){false,true,false,false,true,false,false});
 	arena_free(&eh.ah);
@@ -93,6 +105,7 @@ int main(int argc, char** argv){
 	}
 	kot_init_interpreter(&ah);
 	kot_init_vm(&ah);
+	push_custon_fn();
 	if(!file_provided){
 		fputs("Starting kot in console mode\n\n", stdout);
 		size_t line = 0;
@@ -135,7 +148,7 @@ int main(int argc, char** argv){
 					}else{
 						line++;
 						lh.lxer_tracker = 0;
-						kot_single_run(kot_get_current_inst());
+						//kot_single_run(kot_get_current_inst());
 						kot_pc_inc();
 					}
 				}

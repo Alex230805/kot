@@ -24,19 +24,15 @@ bool kot_single_run(inst_slice inst){
 		case IR_PULL:
 			KOT_FN_CALL(pull);
 			break;
-		case IR_JUMP:
-		case IR_BEQ:	
-		case IR_BGE:		
-		case IR_BLT:		
-		case IR_BNE:		
-		case IR_RET:		
-		case IR_MOV:
-		case IR_LB:		
-		case IR_LH:		
-		case IR_LW:	
-		case IR_SB:		
-		case IR_SH:		
-		case IR_SW:		
+		case IR_JUMP: 
+			KOT_FN_CALL(jump);
+			break;
+		case IR_RETRN:
+			KOT_FN_CALL(retrn);
+			break;
+		case IR_CALL:
+			KOT_FN_CALL(call);
+			break;
 		case IR_ILLEGAL:
 			KOT_EX_NOT_IMPLEMENTED(inst.bytecode, ir_table_lh[inst.bytecode]);
 			break;
@@ -50,12 +46,51 @@ bool kot_single_run(inst_slice inst){
 
 KOT_R_I KOT_FN_DEFINE(push){
 	KOT_R_I status = 0;
-	//TODO("push instruction", NULL);
+	TODO("push instruction", NULL);
 	return status;
 }
 
 KOT_R_I KOT_FN_DEFINE(pull){
 	KOT_R_I status = 0;
-	//TODO("pull instruction", NULL);
+	TODO("pull instruction", NULL);
+	return status;
+}
+
+KOT_R_I KOT_FN_DEFINE(jump){
+	KOT_R_I status = 0;
+	TODO("jump instruction", NULL);
+	return status;
+}
+
+KOT_R_I KOT_FN_DEFINE(retrn){
+	KOT_R_I status = 0;
+	TODO("return instruction", NULL);
+	return status;
+}
+
+KOT_R_I KOT_FN_DEFINE(call){
+	KOT_R_I status = 0;
+
+/*
+	scope* fn_scope = kot_fn_get_scope(name);
+	if(!fn_scope){
+		KOT_ERROR("Error while try to get function scope: unable to find it");
+	}else{
+		// TODO: here the calling and the argument switching must occur, for now every function does not accept any argument
+		switch(fn_scope->type){
+			case FFI: 
+				__ffi_linker_callback fn_ext_body = fn_scope->fn_pointer;
+				fn_ext_body();
+				break;
+			case FUNC: 
+
+				break;
+			default: break;
+		}
+	}
+
+	*/
+
+	TODO("call instruction", NULL);
 	return status;
 }

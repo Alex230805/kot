@@ -13,6 +13,7 @@ void kot_init_interpreter(Arena_header* ah){
 	globl_fn_signature = (fn_signature*)arena_alloc(ah, sizeof(fn_signature)*DEF_GET_ARR_SIZE);
 	globl_fn_signature_tracker = 0;
 	globl_fn_signature_size = DEF_GET_ARR_SIZE;
+
 }
 
 void kot_init_vm(Arena_header*ah){
@@ -64,7 +65,7 @@ int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_ha
 					size_t ptr = kotvm.stack_pointer;
 					kot_push_stack((uint8_t*)string, strlen(string));
 					printf("Variable '%s' assigned with '%s'\n", name, string);
-					KOT_PUSH_VAR_DEC(IR_PUSH, name, (uint32_t)kot_get_type_from_token(type),strlen(string), ptr, false);
+					KOT_PUSH_VAR_DEC(IR_PUSH, name, (uint32_t)kot_get_type_from_token(type),strlen(string), ptr);
 				}
 			}
 		}else{
@@ -80,7 +81,7 @@ int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_ha
 				arg_f = kot_process_float_literal(lh);
 				arg_i = *(uint32_t*)&arg_f;
 			}
-			KOT_PUSH_VAR_DEC(IR_PUSH, name, (uint32_t)kot_get_type_from_token(type), 4, arg_i, false);
+			KOT_PUSH_VAR_DEC(IR_PUSH, name, (uint32_t)kot_get_type_from_token(type), 4, arg_i);
 		}else{
 			KOT_ERROR_PRECISE("Not a valid assignment or incomplete syntax");
 		}
@@ -100,10 +101,11 @@ int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,
 	KOT_PARSER_NEXT();
 	if(token == LXR_CLOSE_BRK){
 		if(next_token == LXR_OPEN_CRL_BRK){
-			fn = kot_define_fn(ah,name,0, NULL);
-			if(!kot_fn_already_declared(*fn)){
+			if(!kot_fn_already_declared(name)){
+				scope *new_scope = (scope*)arena_alloc(ah, sizeof(scope));
+				SWITCH_SCOPE(FUNC);
+				fn = kot_define_fn(ah,name,0, NULL, new_scope);
 				kot_push_fn_dec(ah, *fn);
-				SWITCH_SCOPE(FUNC);	
 			}else{
 				KOT_ERROR("Function already defined");
 			}
@@ -138,10 +140,11 @@ int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,
 		lxer_increase_tracker(lh,-1);
 		KOT_PARSER_REFRESH();
 		if(next_token == LXR_OPEN_CRL_BRK){
-			fn = kot_define_fn(ah,name,args, param_type);
-			if(!kot_fn_already_declared(*fn)){
-				kot_push_fn_dec(ah, *fn);
+			if(!kot_fn_already_declared(name)){
+				scope *new_scope = (scope*)arena_alloc(ah, sizeof(scope));
 				SWITCH_SCOPE(FUNC);	
+				fn = kot_define_fn(ah,name,args, param_type, new_scope);
+				kot_push_fn_dec(ah, *fn);
 			}else{
 				KOT_ERROR("Function already defined");
 			}
@@ -161,10 +164,15 @@ int kot_word_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 	if(lxer_is_brk(next_token)){
 		if(next_token == LXR_OPEN_BRK){
 			KOT_PARSER_NEXT();
-			if(next_token == LXR_CLOSE_BRK){
-			
-			}else if(next_token == LXR_WORD){
-			
+			KOT_PARSER_NEXT();
+			if(token == LXR_CLOSE_BRK || token == LXR_WORD){
+				//printf("Function call identified: '%s'\n", name);
+				if(kot_fn_already_declared(name)){
+					// TODO: verify signature
+					KOT_PUSH_VAR_DEC(IR_CALL, name, 0, 0, 0);
+				}else{
+					KOT_ERROR_PRECISE("No function found with such name");
+				}
 			}else{
 				KOT_SYNTAX_ERR();
 			}
@@ -233,7 +241,7 @@ int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 				}
 				break;
 			case LXR_SEMICOLON:
-				KOT_PUSH_VAR_DEC(IR_PUSH, name, (uint32_t)kot_get_type_from_token(type), 4, 0, false);
+				KOT_PUSH_VAR_DEC(IR_PUSH, name, (uint32_t)kot_get_type_from_token(type), 4, 0);
 				break;
 			default: 
 				KOT_SYNTAX_ERR();

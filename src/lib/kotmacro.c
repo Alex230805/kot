@@ -55,7 +55,6 @@
 
 #define SWITCH_SCOPE(ass_type)\
 	do{\
-		scope *new_scope = (scope*)arena_alloc(ah, sizeof(scope));\
 		arena_list_push(ah,kotvm.cache_scope->list,new_scope);\
 		new_scope->master = kotvm.cache_scope;\
 		new_scope->type = ass_type;\
@@ -67,19 +66,19 @@
 	}while(0);
 
 
-#define KOT_PUSH_VAR_DEC(kot_type, name, arg_0, arg_1,arg_2, is_fn)\
+#define KOT_PUSH_VAR_DEC(kot_type, name, arg_0, arg_1,arg_2)\
 	do{\
 		if(!kot_globl_variable_already_present(name)){\
 			if(kotvm.cache_scope->type == FUNC){\
 				if(!kot_variable_already_present(name)){\
 					kot_push_variable_def(ah, name);\
-					kot_push_instruction(ah,kot_type, name, arg_0, arg_1,arg_2, is_fn);\
+					kot_push_instruction(ah,kot_type, name, arg_0, arg_1,arg_2);\
 				}else{\
 					KOT_ERROR("Variable already defined");\
 				}\
 			}else{\
 				kot_push_globl_variable_def(ah, name);\
-				kot_push_instruction(ah, kot_type, name, arg_0, arg_1,arg_2, is_fn);\
+				kot_push_instruction(ah, kot_type, name, arg_0, arg_1,arg_2);\
 			}\
 		}else{\
 			KOT_ERROR("Variable already defined");\

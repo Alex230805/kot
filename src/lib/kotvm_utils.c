@@ -24,19 +24,15 @@ void kot_get_bytecode(){
 	// compilation
 	fprintf(stdout, "\nCurrent program list: \n");
 	for(size_t i=0;i<kotvm.bytecode_array_tracker;i++){
-		if(kotvm.bytecode_array[i].fn){
-			printf("\t%s: %s \n", kotvm.bytecode_array[i].label ,ir_table_lh[kotvm.bytecode_array[i].bytecode]);
+		printf("\t\t%zu: %s -1x%x, 0x%x, aux 0x%x \t\t| ", i, ir_table_lh[kotvm.bytecode_array[i].bytecode],\
+				kotvm.bytecode_array[i].arg_0,\
+				kotvm.bytecode_array[i].arg_1,\
+				kotvm.bytecode_array[i].arg_2\
+			  );
+		if(kotvm.bytecode_array[i].label != NULL){
+			printf("label %s\n", kotvm.bytecode_array[i].label);
 		}else{
-			printf("\t\t%zu: %s -1x%x, 0x%x, aux 0x%x \t\t| ", i, ir_table_lh[kotvm.bytecode_array[i].bytecode],\
-																				kotvm.bytecode_array[i].arg_0,\
-																				kotvm.bytecode_array[i].arg_1,\
-																				kotvm.bytecode_array[i].arg_2\
-			);
-			if(kotvm.bytecode_array[i].label != NULL){
-				printf("label %s\n", kotvm.bytecode_array[i].label);
-			}else{
-				printf("\n");
-			}
+			printf("\n");
 		}
 	}
 }
@@ -60,14 +56,13 @@ void kot_get_memory_dump(){
 	fprintf(stdout, "\n");
 }
 
-void kot_push_instruction(Arena_header* ah, kot_ir inst, char* label, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2, bool is_fn){
+void kot_push_instruction(Arena_header* ah, kot_ir inst, char* label, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2){
 	inst_slice *is = (inst_slice*)arena_alloc(ah, sizeof(inst_slice));
 	is->label = label;
 	is->bytecode = inst;
 	is->arg_0 = arg_0;
 	is->arg_1 = arg_1;
 	is->arg_2 = arg_2;
-	is->fn = is_fn;
 	arena_list_push(ah, kotvm.cache_scope->list, is);
 	//if(!is_fn) printf("Pushing new instruction inside scope %p\n", kotvm.cache_scope);
 }
@@ -139,11 +134,11 @@ void kot_push_fn_dec(Arena_header* ah, fn_signature fn){
 }
 
 
-bool kot_fn_already_declared(fn_signature fn){
+bool kot_fn_already_declared(char* name){
 	bool status = false;
 	for(size_t i=0;i<globl_fn_signature_tracker && !status; i++){
 		if(globl_fn_signature[i].name != NULL){
-			if(strcmp(globl_fn_signature[i].name, fn.name) == 0){
+			if(strcmp(globl_fn_signature[i].name, name) == 0){
 				status = true;
 			}
 		}
@@ -151,13 +146,27 @@ bool kot_fn_already_declared(fn_signature fn){
 	return status;
 }
 
+scope* kot_fn_get_scope(char* name){
+	bool status = false;
+	scope* fn_scope = NULL;
+	for(size_t i=0;i<globl_fn_signature_tracker && !status; i++){
+		if(globl_fn_signature[i].name != NULL){
+			if(strcmp(globl_fn_signature[i].name, name) == 0){
+				status = true;
+				fn_scope = globl_fn_signature[i].fn_scope;
+			}
+		}
+	}
+	return fn_scope;
+}
 
-fn_signature* kot_define_fn(Arena_header* ah,char* name,int param_len, KOT_TYPE* param_type){
+fn_signature* kot_define_fn(Arena_header* ah,char* name,int param_len, KOT_TYPE* param_type, scope* fn_scope){
 	fn_signature* fn = (fn_signature*)arena_alloc(ah, sizeof(fn_signature));
 	fn->name = (char*)arena_alloc(ah, sizeof(char)*strlen(name));
 	strcpy(fn->name, name);
 	fn->param_len = param_len;
 	fn->param_type = param_type;
+	fn->fn_scope = fn_scope;
 	return fn;
 }
 
@@ -247,4 +256,22 @@ uint32_t kot_pull_return_ptr(){
 		}
 	}
 	return kot_cache_fn_pointer; 
+}
+
+
+bool kot_link_function(Arena_header* ah, fn_signature *fn, __ffi_linker_callback fn_call){
+	if(!kot_fn_already_declared(fn->name)){
+		scope *new_scope = (scope*)arena_alloc(ah, sizeof(scope));
+		new_scope->type = FFI;
+		new_scope->var_def = NULL;
+		new_scope->var_def_tracker = 0;
+		new_scope->var_def_size = 0;
+		new_scope->master = kotvm.main_scope;
+		new_scope->fn_pointer = fn_call;
+		new_scope->list = NULL;	
+		fn->fn_scope = new_scope;
+		kot_push_fn_dec(ah, *fn);
+		return true;
+	}
+	return false;
 }
