@@ -41,7 +41,7 @@ static kot_ir ir_table[] = {
 
 	IR_JUMP,
 	
-	//  call(arg_0 = fn_name pointer, arg_1 = fn_name length, arg_3 = 0)
+	//  call(arg_0 = fn_name pointer, arg_1 = arg count, arg_3 = 0)
 	IR_CALL,
 	IR_RETRN,
 	IR_HALT,
@@ -60,12 +60,37 @@ static char* ir_table_lh[] = {
 };
 
 typedef struct{
-	char* label;
 	kot_ir bytecode;
 	uint32_t arg_0;
 	uint32_t arg_1;
 	uint32_t arg_2;
 }inst_slice;
+
+typedef enum{
+	KOT_INT, 
+	KOT_CHAR, 
+	KOT_BOOL,
+	KOT_VOID,
+	KOT_STR,
+	KOT_FLOAT,
+	KOT_UNDEFINED
+}KOT_TYPE;
+
+
+static char* type_table_lh[] = {
+	[KOT_INT] = "int", 
+	[KOT_CHAR] = "char", 
+	[KOT_BOOL] = "bool",
+	[KOT_VOID] = "void",
+	[KOT_STR] = "str",
+	[KOT_FLOAT] = "float",
+	[KOT_UNDEFINED] = "undefined type"
+};
+
+typedef struct{
+	KOT_TYPE type;
+	char* name;
+}var_cell;
 
 #define STRT 0
 #define COND 1
@@ -77,7 +102,7 @@ typedef int(*__ffi_linker_callback)(void);
 typedef struct scope{
 	int type;
 	
-	char** var_def;
+	var_cell* var_def;
 	size_t var_def_tracker;
 	size_t var_def_size;
 	
@@ -89,11 +114,20 @@ typedef struct scope{
 
 typedef struct{
 	int type;
-
 	scope* master;
+	
 	scope* branch_true;
 	scope* branch_false;
 }scope_branch;
+
+
+typedef struct{
+	char* name;
+	size_t param_len;
+	KOT_TYPE* param_type;
+	scope* fn_scope;
+}fn_signature;
+
 
 typedef struct{
 	uint32_t gpr[GPR_NUM];
@@ -119,41 +153,10 @@ typedef struct{
 }vkot_machine;
 
 
-typedef enum{
-	KOT_INT, 
-	KOT_CHAR, 
-	KOT_BOOL,
-	KOT_VOID,
-	KOT_STR,
-	KOT_FLOAT,
-	KOT_UNDEFINED
-}KOT_TYPE;
-
-
-static char* type_table_lh[] = {
-	[KOT_INT] = "int", 
-	[KOT_CHAR] = "char", 
-	[KOT_BOOL] = "bool",
-	[KOT_VOID] = "void",
-	[KOT_STR] = "str",
-	[KOT_FLOAT] = "float",
-	[KOT_UNDEFINED] = "undefined type"
-};
-
-typedef struct{
-	char* name;
-	size_t param_len;
-	KOT_TYPE* param_type;
-	scope* fn_scope;
-}fn_signature;
-
-
-
-
 static vkot_machine kotvm;
 static size_t line;
 
-static	char** glob_var_def;
+static	var_cell* glob_var_def;
 static	size_t glob_var_def_tracker;
 static	size_t glob_var_def_size;
 
@@ -165,11 +168,14 @@ static size_t globl_fn_signature_size;
 void kot_init_vm(Arena_header*ah);
 void kot_init_interpreter(Arena_header* ah);
 
-void kot_push_globl_variable_def(Arena_header* ah,char* name);
+void kot_push_globl_variable_def(Arena_header* ah,char* name, KOT_TYPE type);
 bool kot_globl_variable_already_present(char* name);
 
-void kot_push_variable_def(Arena_header* ah,char* name);
+void kot_push_variable_def(Arena_header* ah,char* name, KOT_TYPE type);
 bool kot_variable_already_present(char* name);
+KOT_TYPE kot_globl_var_get_type(char* name);
+KOT_TYPE kot_var_get_type(char* name);
+fn_signature* kot_fn_get_signature(char* name);
 
 void kot_push_fn_dec(Arena_header* ah, fn_signature fn);
 bool kot_fn_already_declared(char* name);
@@ -209,7 +215,7 @@ uint32_t kot_pull_return_ptr();
 
 void kot_get_bytecode();
 void kot_get_memory_dump();
-void kot_push_instruction(Arena_header* ah, kot_ir inst, char* label, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2);
+void kot_push_instruction(Arena_header* ah, kot_ir inst, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2);
 void kot_get_program_list(FILE* filestream);
 
 #define KOT_R_I int 

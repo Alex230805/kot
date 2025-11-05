@@ -59,29 +59,27 @@
 		new_scope->master = kotvm.cache_scope;\
 		new_scope->type = ass_type;\
 		new_scope->list = (List_header*)arena_alloc(ah, sizeof(List_header));\
-		new_scope->var_def = (char**)arena_alloc(ah,sizeof(char*)*DEF_GET_ARR_SIZE);\
+		new_scope->var_def = (var_cell*)arena_alloc(ah,sizeof(var_cell)*DEF_GET_ARR_SIZE);\
 		new_scope->var_def_tracker = 0;\
 		new_scope->var_def_size = DEF_GET_ARR_SIZE;\
 		kotvm.cache_scope = new_scope;\
 	}while(0);
 
-
-#define KOT_PUSH_VAR_DEC(kot_type, name, arg_0, arg_1,arg_2)\
+#define KOT_PUSH_VAR(name, kot_type, arg_0, arg_1, arg_2)\
 	do{\
 		if(!kot_globl_variable_already_present(name)){\
 			if(kotvm.cache_scope->type == FUNC){\
 				if(!kot_variable_already_present(name)){\
-					kot_push_variable_def(ah, name);\
-					kot_push_instruction(ah,kot_type, name, arg_0, arg_1,arg_2);\
+					kot_push_variable_def(ah, name, kot_type);\
+					kot_push_instruction(ah,IR_PUSH, arg_0, arg_1,arg_2);\
 				}else{\
 					KOT_ERROR("Variable already defined");\
 				}\
 			}else{\
-				kot_push_globl_variable_def(ah, name);\
-				kot_push_instruction(ah, kot_type, name, arg_0, arg_1,arg_2);\
+				kot_push_globl_variable_def(ah, name, kot_type);\
+				kot_push_instruction(ah, IR_PUSH, arg_0, arg_1,arg_2);\
 			}\
 		}else{\
 			KOT_ERROR("Variable already defined");\
 		}\
 	}while(0);
-

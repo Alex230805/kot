@@ -70,6 +70,7 @@ KOT_R_I KOT_FN_DEFINE(retrn){
 
 KOT_R_I KOT_FN_DEFINE(call){
 	KOT_R_I status = 0;
+	TODO("call instruction", NULL);
 
 /*
 	scope* fn_scope = kot_fn_get_scope(name);
@@ -91,6 +92,5 @@ KOT_R_I KOT_FN_DEFINE(call){
 
 	*/
 
-	TODO("call instruction", NULL);
 	return status;
 }

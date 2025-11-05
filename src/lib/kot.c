@@ -6,7 +6,7 @@
 #include "kot_runner.c"
 
 void kot_init_interpreter(Arena_header* ah){
-	glob_var_def = (char**)arena_alloc(ah,sizeof(char*)*DEF_GET_ARR_SIZE);
+	glob_var_def = (var_cell*)arena_alloc(ah,sizeof(var_cell)*DEF_GET_ARR_SIZE);
 	glob_var_def_tracker = 0;
 	glob_var_def_size = DEF_GET_ARR_SIZE;
 
@@ -65,7 +65,7 @@ int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_ha
 					size_t ptr = kotvm.stack_pointer;
 					kot_push_stack((uint8_t*)string, strlen(string));
 					printf("Variable '%s' assigned with '%s'\n", name, string);
-					KOT_PUSH_VAR_DEC(IR_PUSH, name, (uint32_t)kot_get_type_from_token(type),strlen(string), ptr);
+					KOT_PUSH_VAR(name,kot_get_type_from_token(type), (uint32_t)kot_get_type_from_token(type),strlen(string), ptr);
 				}
 			}
 		}else{
@@ -81,7 +81,7 @@ int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_ha
 				arg_f = kot_process_float_literal(lh);
 				arg_i = *(uint32_t*)&arg_f;
 			}
-			KOT_PUSH_VAR_DEC(IR_PUSH, name, (uint32_t)kot_get_type_from_token(type), 4, arg_i);
+			KOT_PUSH_VAR(name,kot_get_type_from_token(type), (uint32_t)kot_get_type_from_token(type), 4, arg_i);
 		}else{
 			KOT_ERROR_PRECISE("Not a valid assignment or incomplete syntax");
 		}
@@ -103,6 +103,7 @@ int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,
 		if(next_token == LXR_OPEN_CRL_BRK){
 			if(!kot_fn_already_declared(name)){
 				scope *new_scope = (scope*)arena_alloc(ah, sizeof(scope));
+				//printf("Switching to new scope %p from %p\n", new_scope, kotvm.cache_scope);
 				SWITCH_SCOPE(FUNC);
 				fn = kot_define_fn(ah,name,0, NULL, new_scope);
 				kot_push_fn_dec(ah, *fn);
@@ -142,6 +143,7 @@ int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,
 		if(next_token == LXR_OPEN_CRL_BRK){
 			if(!kot_fn_already_declared(name)){
 				scope *new_scope = (scope*)arena_alloc(ah, sizeof(scope));
+				//printf("Switching to new scope %p from %p\n", new_scope, kotvm.cache_scope);
 				SWITCH_SCOPE(FUNC);	
 				fn = kot_define_fn(ah,name,args, param_type, new_scope);
 				kot_push_fn_dec(ah, *fn);
@@ -168,8 +170,81 @@ int kot_word_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 			if(token == LXR_CLOSE_BRK || token == LXR_WORD){
 				//printf("Function call identified: '%s'\n", name);
 				if(kot_fn_already_declared(name)){
-					// TODO: verify signature
-					KOT_PUSH_VAR_DEC(IR_CALL, name, 0, 0, 0);
+					fn_signature* local_sign = kot_fn_get_signature(name);
+					if(local_sign == NULL){
+						KOT_ERROR("Unable to get function signature");
+					}
+
+					int argc = 0;
+					int exp_argc = local_sign->param_len;
+					KOT_TYPE* exp_argt = local_sign->param_type;
+
+					while(token != LXR_CLOSE_BRK && status == 0 && argc < exp_argc){
+						char* var_name = lxer_get_word(lh);
+						KOT_TYPE type = KOT_UNDEFINED;;
+						
+						if(kot_globl_variable_already_present(var_name)){
+							type = kot_globl_var_get_type(var_name);
+						}else if(kot_variable_already_present(var_name)){
+							type = kot_var_get_type(var_name);
+						}else{
+							//printf("Total globl variable: %zu\n", glob_var_def_tracker);
+							KOT_ERROR_PRECISE("Unable to locate variable, did you define it??");
+						}
+
+						if(type != KOT_UNDEFINED && type == exp_argt[argc]){
+							// TODO: passing variable
+							//printf("Global variable '%s' match the expected type '%s'\n", var_name, type_table_lh[exp_argt[argc]]);
+							argc++;
+							KOT_PARSER_NEXT();
+							if(token == LXR_COMMA) {
+								KOT_PARSER_NEXT();
+							}
+						}else{
+							char* buffer = (char*)arena_alloc(ah, sizeof(char)*256);
+							char* temp = (char*)temp_alloc(sizeof(char)*32);
+							strcat(buffer, "Type miscmatch, variable '");
+							sprintf(temp, "%s",  var_name);
+							strcat(buffer, var_name);
+							strcat(buffer, "' has type '");
+							sprintf(temp, "%s", type_table_lh[type]);
+							strcat(buffer, temp);
+							strcat(buffer, "', but arg ");
+							sprintf(temp, "%d", argc);
+							strcat(buffer, temp);
+							strcat(buffer, " expect type '");
+							sprintf(temp, "%s", type_table_lh[exp_argt[argc]]);
+							strcat(buffer, temp);
+							strcat(buffer, "'");
+							KOT_ERROR_PRECISE(buffer);
+						}
+					}
+
+					{
+						if(status == 0){
+							if(argc == exp_argc){
+								kot_push_instruction(ah, IR_CALL, *(uint32_t*)name, argc, 0);
+								TODO("Call instruction pushed, but there is no variables passing mechanism", NULL);
+							}else{
+								char* buffer = (char*)arena_alloc(ah, sizeof(char)*256);
+								char* temp = (char*)temp_alloc(sizeof(char)*32);
+								strcat(buffer, "Unable to call '");
+								sprintf(temp, "%s", name);
+								strcat(buffer, temp);
+								strcat(buffer, "', ");
+								strcat(buffer, "not enought arguments, expecting ");
+								sprintf(temp, "%d", exp_argc);
+								strcat(buffer, temp);
+								strcat(buffer, " but got ");
+								sprintf(temp, "%d", argc);
+								strcat(buffer, temp);
+								KOT_ERROR_PRECISE(buffer);
+							}
+						}else{
+							KOT_ERROR("Unable to perform function call");
+						}
+					}
+
 				}else{
 					KOT_ERROR_PRECISE("No function found with such name");
 				}
@@ -241,15 +316,15 @@ int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 				}
 				break;
 			case LXR_SEMICOLON:
-				KOT_PUSH_VAR_DEC(IR_PUSH, name, (uint32_t)kot_get_type_from_token(type), 4, 0);
+				KOT_PUSH_VAR(name,kot_get_type_from_token(type),(uint32_t)kot_get_type_from_token(type), 4, 0);
 				break;
 			default: 
 				KOT_SYNTAX_ERR();
 				break;
 		}
 	}else{
-		KOT_ERROR("Not a valid syntax for variable or function declaration/definition");
-	}
+		KOT_SYNTAX_ERR();
+	}	
 	return status;
 }
 
@@ -285,7 +360,7 @@ int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh, bool console
 				}else{
 					//printf("Going up the hierarchy to %p\n", kotvm.cache_scope->master);
 					kotvm.cache_scope = kotvm.cache_scope->master; // going up the hierarchy
-				}	
+				}
 			}
 		}
 		lxer_next_token(lh);

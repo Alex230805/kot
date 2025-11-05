@@ -29,11 +29,7 @@ void kot_get_bytecode(){
 				kotvm.bytecode_array[i].arg_1,\
 				kotvm.bytecode_array[i].arg_2\
 			  );
-		if(kotvm.bytecode_array[i].label != NULL){
-			printf("label %s\n", kotvm.bytecode_array[i].label);
-		}else{
-			printf("\n");
-		}
+		printf("\n");
 	}
 }
 
@@ -56,9 +52,8 @@ void kot_get_memory_dump(){
 	fprintf(stdout, "\n");
 }
 
-void kot_push_instruction(Arena_header* ah, kot_ir inst, char* label, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2){
+void kot_push_instruction(Arena_header* ah, kot_ir inst, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2){
 	inst_slice *is = (inst_slice*)arena_alloc(ah, sizeof(inst_slice));
-	is->label = label;
 	is->bytecode = inst;
 	is->arg_0 = arg_0;
 	is->arg_1 = arg_1;
@@ -72,53 +67,54 @@ inst_slice kot_get_current_inst(){
 	return kotvm.bytecode_array[kotvm.program_counter];
 }
 
-void kot_push_globl_variable_def(Arena_header* ah,char* name){
-	//NOTY("GLOBAL ACTION", "Pushing local variable '%s'", name);
+void kot_push_globl_variable_def(Arena_header* ah,char* name, KOT_TYPE type){
+	//NOTY("GLOBAL ACTION", "Pushing global variable '%s'", name);
 	if(glob_var_def_tracker += 1 >= glob_var_def_size){
-		char** old_arr = glob_var_def;
-		glob_var_def = (char**)arena_alloc(ah,sizeof(char*)*glob_var_def_size*2);
+		var_cell* old_arr = glob_var_def;
+		glob_var_def = (var_cell*)arena_alloc(ah,sizeof(var_cell)*glob_var_def_size*2);
 		glob_var_def_size*=2;
-		memcpy(glob_var_def, old_arr, sizeof(char*)*glob_var_def_tracker);
+		memcpy(glob_var_def, old_arr, sizeof(var_cell)*glob_var_def_tracker);
+		kotvm.main_scope->var_def = glob_var_def;
+		kotvm.main_scope->var_def_size = glob_var_def_size;
 	}
-	glob_var_def[glob_var_def_tracker] = name;
+	glob_var_def[glob_var_def_tracker].name = name;
+	glob_var_def[glob_var_def_tracker].type = type;
 	glob_var_def_tracker += 1;
-	kotvm.main_scope->var_def = glob_var_def;
 	kotvm.main_scope->var_def_tracker = glob_var_def_tracker;
-	kotvm.main_scope->var_def_size = glob_var_def_size;
 }
 
 bool kot_globl_variable_already_present(char* name){
 	for(size_t i=0;i<glob_var_def_tracker; i++){
-		if(glob_var_def[i] != NULL){
-			if(strcmp(name, glob_var_def[i])==0){
-				return true;
-			}
+		//printf("Comparisong between '%s' and '%s'\n", name, glob_var_def[i].name);
+		if(strcmp(name, glob_var_def[i].name)==0){
+			return true;
 		}
 	}
 	return false;
 }
-void kot_push_variable_def(Arena_header* ah,char* name){
+void kot_push_variable_def(Arena_header* ah,char* name, KOT_TYPE type){
 	//NOTY("LOCAL ACTION", "Pushing local variable '%s'", name);
 	if(kotvm.cache_scope->var_def_tracker += 1 >= kotvm.cache_scope->var_def_size){
-		char** old_arr = kotvm.cache_scope->var_def;
-		kotvm.cache_scope->var_def = (char**)arena_alloc(ah,sizeof(char*)*kotvm.cache_scope->var_def_size*2);
+		var_cell* old_arr = kotvm.cache_scope->var_def;
+		kotvm.cache_scope->var_def = (var_cell*)arena_alloc(ah,sizeof(var_cell)*kotvm.cache_scope->var_def_size*2);
 		kotvm.cache_scope->var_def_size*=2;
-		memcpy(kotvm.cache_scope->var_def, old_arr, sizeof(char*)*kotvm.cache_scope->var_def_tracker);
+		memcpy(kotvm.cache_scope->var_def, old_arr, sizeof(var_cell)*kotvm.cache_scope->var_def_tracker);
 	}
-	kotvm.cache_scope->var_def[kotvm.cache_scope->var_def_tracker] = name;
+	kotvm.cache_scope->var_def[kotvm.cache_scope->var_def_tracker].name = name;
+	kotvm.cache_scope->var_def[kotvm.cache_scope->var_def_tracker].type = type;
 	kotvm.cache_scope->var_def_tracker += 1;
 }
 
 bool kot_variable_already_present(char* name){
 	for(size_t i=0;i<kotvm.cache_scope->var_def_tracker; i++){
-		if(kotvm.cache_scope->var_def[i] != NULL){
-			if(strcmp(name, kotvm.cache_scope->var_def[i])==0){
-				return true;
-			}
+		if(strcmp(name, kotvm.cache_scope->var_def[i].name)==0){
+			return true;
 		}
 	}
 	return false;
 }
+
+
 
 
 
@@ -158,6 +154,39 @@ scope* kot_fn_get_scope(char* name){
 		}
 	}
 	return fn_scope;
+}
+
+fn_signature* kot_fn_get_signature(char* name){
+	for(size_t i=0;i<globl_fn_signature_tracker; i++){
+		if(globl_fn_signature[i].name != NULL){
+			if(strcmp(globl_fn_signature[i].name, name) == 0){
+				return &globl_fn_signature[i];
+			}
+		}
+	}
+	return NULL;
+}
+
+KOT_TYPE kot_globl_var_get_type(char* name){
+	for(size_t i=0;i<glob_var_def_tracker; i++){
+		if(glob_var_def[i].name != NULL){
+			if(strcmp(name, glob_var_def[i].name)==0){
+				return glob_var_def[i].type;
+			}
+		}
+	}
+	return KOT_UNDEFINED;
+}
+
+KOT_TYPE kot_var_get_type(char* name){
+	for(size_t i=0;i<kotvm.cache_scope->var_def_tracker; i++){
+		if(kotvm.cache_scope->var_def[i].name != NULL){
+			if(strcmp(name, kotvm.cache_scope->var_def[i].name)==0){
+				return kotvm.cache_scope->var_def[i].type;
+			}
+		}
+	}
+	return KOT_UNDEFINED;
 }
 
 fn_signature* kot_define_fn(Arena_header* ah,char* name,int param_len, KOT_TYPE* param_type, scope* fn_scope){
