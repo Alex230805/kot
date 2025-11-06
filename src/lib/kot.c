@@ -64,8 +64,8 @@ int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_ha
 				}else{
 					size_t ptr = kotvm.stack_pointer;
 					kot_push_stack((uint8_t*)string, strlen(string));
-					printf("Variable '%s' assigned with '%s'\n", name, string);
-					KOT_INST_VAR(name,kot_get_type_from_token(type),kotvm.stack_pointer + strlen(string) ,ptr, strlen(string));
+					//printf("Variable '%s' assigned with '%s'\n", name, string);
+					KOT_INST_VAR(name,kot_get_type_from_token(type),ptr, 0, strlen(string));
 				}
 			}
 		}else{
@@ -81,7 +81,7 @@ int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_ha
 				arg_f = kot_process_float_literal(lh);
 				arg_i = *(uint32_t*)&arg_f;
 			}
-			KOT_INST_VAR(name,kot_get_type_from_token(type), kotvm.stack_pointer+4, arg_i, 0);
+			KOT_INST_VAR(name,kot_get_type_from_token(type), kotvm.stack_pointer, arg_i, 0);
 		}else{
 			KOT_ERROR_PRECISE("Not a valid assignment or incomplete syntax");
 		}
@@ -178,7 +178,12 @@ int kot_word_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 					int argc = 0;
 					int exp_argc = local_sign->param_len;
 					KOT_TYPE* exp_argt = local_sign->param_type;
-					int32_t pos = 0;
+					
+					// TODO: hard coded address position array for each variable used as argument during the request, this is limited at 64 for now
+					int32_t var_adr[64] = {0};
+					int var_adr_tracker = 0;
+					int var_adr_size = 64;
+
 					char* var_name = NULL; 
 
 					while(token != LXR_CLOSE_BRK && status == 0 && argc < exp_argc){
@@ -187,10 +192,20 @@ int kot_word_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 
 						if(kot_globl_variable_already_present(var_name)){
 							type = kot_globl_var_get_type(var_name);
-							pos = kot_globl_var_get_adr(var_name);
+							var_adr[var_adr_tracker] = kot_globl_var_get_adr(var_name);
+							if(var_adr_tracker + 1 > var_adr_size){
+								KOT_ERROR("Exceeding argument limit array");
+							}else{
+								var_adr_tracker++;
+							}
 						}else if(kot_variable_already_present(var_name)){
 							type = kot_var_get_type(var_name);
-							pos = kot_var_get_adr(var_name);
+							var_adr[var_adr_tracker] = kot_var_get_adr(var_name);
+							if(var_adr_tracker + 1 > var_adr_size){
+								KOT_ERROR("Exceeding argument limit array");
+							}else{
+								var_adr_tracker++;
+							}
 						}else{
 							//printf("Total globl variable: %zu\n", glob_var_def_tracker);
 							KOT_ERROR_PRECISE("Unable to locate variable, did you define it??");
@@ -240,7 +255,8 @@ int kot_word_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 						if(status == 0){
 							if(argc == exp_argc){
 								for(int i=0;i<argc;i++){
-									kot_push_instruction(ah, IR_PULL, 21+i, pos, 0);
+									//printf("Adding pull instruction for variable located at 0x%x, load destination is register %d\n", var_adr[i], 21+i);
+									kot_push_instruction(ah, IR_PULL, 21+i, var_adr[i], 0);
 								}
 								kot_push_instruction(ah, IR_CALL, *(uint32_t*)name, argc, 0);
 							}else{
@@ -403,7 +419,7 @@ KOT_TYPE kot_get_type_from_token(LXR_TOKENS token){
 			arg_type = KOT_FLOAT;
 			break;
 		case LXR_CHAR_TYPE:
-			arg_type = KOT_CHAR;	
+			arg_type = KOT_CHAR;
 			break;
 		case LXR_VOID_TYPE: 
 			arg_type = KOT_VOID;

@@ -229,7 +229,7 @@ void kot_pc_inc(){
 void kot_push_stack(uint8_t* data, int size){
 	for(size_t i=0; i < size; i++){
 		kotvm.memory[kotvm.stack_pointer] = data[i];
-		if(kotvm.stack_pointer + 1 >= DEF_STACK_INIT){
+		if(kotvm.stack_pointer + 1 >= DEF_STACK_LIMIT){
 			kotvm.stack_pointer = 0;
 		}else{
 			kotvm.stack_pointer += 1;
@@ -240,7 +240,7 @@ void kot_push_stack(uint8_t* data, int size){
 void kot_alloc_stack(int size){
 	//printf("Requiring %d reserved stack space\n", size);
 	for(size_t i=0; i < size; i++){
-		if(kotvm.stack_pointer + 1 >= DEF_STACK_INIT){
+		if(kotvm.stack_pointer + 1 >= DEF_STACK_LIMIT){
 			kotvm.stack_pointer = 0;
 		}else{
 			kotvm.stack_pointer += 1;
@@ -252,8 +252,8 @@ uint8_t* kot_pull_stack(Arena_header* ah, int size){
 	uint8_t* buffer = (uint8_t*)arena_alloc(ah, sizeof(uint8_t)*size);
 	for(size_t i=0; i < size; i++){
 		buffer[i] = kotvm.memory[kotvm.stack_pointer];
-		if(kotvm.stack_pointer - 1 < DEF_STACK_LIMIT){
-			kotvm.stack_pointer = DEF_STACK_INIT;
+		if(kotvm.stack_pointer - 1 < DEF_STACK_INIT){
+			kotvm.stack_pointer = DEF_STACK_LIMIT;
 		}else{
 			kotvm.stack_pointer -= 1;
 		}
@@ -266,8 +266,8 @@ uint8_t* kot_get_stack(Arena_header* ah, int size){
 	uint8_t* buffer = (uint8_t*)arena_alloc(ah, sizeof(uint8_t)*size);
 	for(size_t i=0; i < size; i++){
 		buffer[i] = kotvm.memory[kotvm.stack_pointer];
-		if(kotvm.stack_pointer - 1 < DEF_STACK_LIMIT){
-			kotvm.stack_pointer = DEF_STACK_INIT;
+		if(kotvm.stack_pointer - 1 < DEF_STACK_INIT){
+			kotvm.stack_pointer = DEF_STACK_LIMIT;
 		}else{
 			kotvm.stack_pointer -= 1;
 		}
@@ -294,7 +294,7 @@ size_t kot_write_heap(Arena_header* ah,uint8_t* data, int size){
 void kot_push_return_ptr(uint32_t ptr){
 	for(size_t i=0; i < 4; i++){
 		kotvm.memory[kotvm.call_stack_pointer] = ptr >> i*8;
-		if(kotvm.call_stack_pointer + 1 >= DEF_STK_CALL_INIT){
+		if(kotvm.call_stack_pointer + 1 >= DEF_STK_CALL_LIMIT){
 			kotvm.call_stack_pointer = 0;
 		}else{
 			kotvm.call_stack_pointer += 1;
@@ -306,8 +306,8 @@ uint32_t kot_pull_return_ptr(){
 	uint32_t kot_cache_fn_pointer = 0;
 	for(size_t i=0; i < 4; i++){
 		kot_cache_fn_pointer = kot_cache_fn_pointer |  kotvm.memory[kotvm.call_stack_pointer] << i*8;
-		if(kotvm.call_stack_pointer - 1 < DEF_STK_CALL_LIMIT){
-			kotvm.call_stack_pointer = DEF_STK_CALL_INIT;
+		if(kotvm.call_stack_pointer - 1 < DEF_STK_CALL_INIT){
+			kotvm.call_stack_pointer = DEF_STK_CALL_LIMIT;
 		}else{
 			kotvm.call_stack_pointer -= 1;
 		}

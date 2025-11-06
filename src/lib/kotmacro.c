@@ -72,14 +72,14 @@
 				if(!kot_variable_already_present(name)){\
 					kot_push_variable_def(ah, name, kot_type, arg_0);\
 					kot_push_instruction(ah,IR_PUSH, arg_0, arg_1,arg_2);\
-					kot_alloc_stack(kot_get_size_from_type(kot_type));\
+					if(arg_2 == 0) kot_alloc_stack(kot_get_size_from_type(kot_type));\
 				}else{\
 					KOT_ERROR("Variable already defined");\
 				}\
 			}else{\
 				kot_push_globl_variable_def(ah, name, kot_type, arg_0);\
 				kot_push_instruction(ah, IR_PUSH, arg_0, arg_1,arg_2);\
-				kot_alloc_stack(kot_get_size_from_type(kot_type));\
+				if(arg_2 == 0) kot_alloc_stack(kot_get_size_from_type(kot_type));\
 			}\
 		}else{\
 			KOT_ERROR("Variable already defined");\

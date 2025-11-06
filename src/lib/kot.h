@@ -12,11 +12,11 @@
 
 #define DEF_MEMORY_SIZE 0xFFFFF
 
-#define DEF_STACK_INIT		0x0FFFF
-#define DEF_STACK_LIMIT		0x01000
-#define DEF_STK_CALL_INIT	0x00FFF
-#define DEF_STK_CALL_LIMIT	0x00000
 
+#define DEF_STK_CALL_INIT	0x00000
+#define DEF_STK_CALL_LIMIT	0x00FFF
+#define DEF_STACK_INIT		0x01000
+#define DEF_STACK_LIMIT		0x0FFFF
 #define DEF_HEAP_INIT		0x10000
 
 #define DEF_SOURCE_SIZE  256 // intended as line of code, not individual character
