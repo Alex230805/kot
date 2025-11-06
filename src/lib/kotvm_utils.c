@@ -13,7 +13,7 @@
 
 
 void kot_get_program_list(FILE* filestream){
-	fprintf(filestream,"\nProgram list: \n\n");
+	fprintf(filestream,"\n");
 	for(size_t i=0;i<kotvm.program_source_tracker;i++){
 		fputs(kotvm.program_source[i],filestream);
 	}
@@ -67,7 +67,7 @@ inst_slice kot_get_current_inst(){
 	return kotvm.bytecode_array[kotvm.program_counter];
 }
 
-void kot_push_globl_variable_def(Arena_header* ah,char* name, KOT_TYPE type){
+void kot_push_globl_variable_def(Arena_header* ah,char* name, KOT_TYPE type, int32_t pos){
 	//NOTY("GLOBAL ACTION", "Pushing global variable '%s'", name);
 	if(glob_var_def_tracker += 1 >= glob_var_def_size){
 		var_cell* old_arr = glob_var_def;
@@ -79,6 +79,7 @@ void kot_push_globl_variable_def(Arena_header* ah,char* name, KOT_TYPE type){
 	}
 	glob_var_def[glob_var_def_tracker].name = name;
 	glob_var_def[glob_var_def_tracker].type = type;
+	glob_var_def[glob_var_def_tracker].adr = pos;
 	glob_var_def_tracker += 1;
 	kotvm.main_scope->var_def_tracker = glob_var_def_tracker;
 }
@@ -92,7 +93,7 @@ bool kot_globl_variable_already_present(char* name){
 	}
 	return false;
 }
-void kot_push_variable_def(Arena_header* ah,char* name, KOT_TYPE type){
+void kot_push_variable_def(Arena_header* ah,char* name, KOT_TYPE type, int32_t pos){
 	//NOTY("LOCAL ACTION", "Pushing local variable '%s'", name);
 	if(kotvm.cache_scope->var_def_tracker += 1 >= kotvm.cache_scope->var_def_size){
 		var_cell* old_arr = kotvm.cache_scope->var_def;
@@ -102,6 +103,7 @@ void kot_push_variable_def(Arena_header* ah,char* name, KOT_TYPE type){
 	}
 	kotvm.cache_scope->var_def[kotvm.cache_scope->var_def_tracker].name = name;
 	kotvm.cache_scope->var_def[kotvm.cache_scope->var_def_tracker].type = type;
+	kotvm.cache_scope->var_def[kotvm.cache_scope->var_def_tracker].adr = pos;
 	kotvm.cache_scope->var_def_tracker += 1;
 }
 
@@ -114,7 +116,23 @@ bool kot_variable_already_present(char* name){
 	return false;
 }
 
+int32_t kot_var_get_adr(char* name){
+	for(size_t i=0;i<kotvm.cache_scope->var_def_tracker; i++){
+		if(strcmp(name, kotvm.cache_scope->var_def[i].name)==0){
+			return kotvm.cache_scope->var_def[i].adr;
+		}
+	}
+	return 0;
+}
 
+int32_t kot_globl_var_get_adr(char* name){
+	for(size_t i=0;i<glob_var_def_tracker; i++){
+		if(strcmp(name, glob_var_def[i].name)==0){
+			return glob_var_def[i].adr; 
+		}
+	}
+	return 0;
+}
 
 
 
@@ -219,6 +237,17 @@ void kot_push_stack(uint8_t* data, int size){
 	}
 }
 
+void kot_alloc_stack(int size){
+	//printf("Requiring %d reserved stack space\n", size);
+	for(size_t i=0; i < size; i++){
+		if(kotvm.stack_pointer + 1 >= DEF_STACK_INIT){
+			kotvm.stack_pointer = 0;
+		}else{
+			kotvm.stack_pointer += 1;
+		}
+	}
+}
+
 uint8_t* kot_pull_stack(Arena_header* ah, int size){
 	uint8_t* buffer = (uint8_t*)arena_alloc(ah, sizeof(uint8_t)*size);
 	for(size_t i=0; i < size; i++){
@@ -231,7 +260,6 @@ uint8_t* kot_pull_stack(Arena_header* ah, int size){
 	}
 	return buffer;
 }
-
 
 uint8_t* kot_get_stack(Arena_header* ah, int size){
 	uint32_t og_ptr = kotvm.stack_pointer;

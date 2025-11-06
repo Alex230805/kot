@@ -35,8 +35,9 @@ typedef enum{
 }kot_ir;
 
 static kot_ir ir_table[] = {
-	// push(arg_0 = type, arg_1 = lenght of type | string_length, arg_3 ? pointer : 0)
+	// push(arg_0 = mem dest, arg_1 = ptr | data, arg_3 ? len of array : 0) NOTE: length of type is automatically known in the global/local var declaration table
 	IR_PUSH,
+	// pull(arg_0 = reg_dest, arg_1 = stack_pos, arg_3 = offset in byte) NOTE: lenght of type is automatically known in the global/local var declaration table
 	IR_PULL,
 
 	IR_JUMP,
@@ -87,9 +88,21 @@ static char* type_table_lh[] = {
 	[KOT_UNDEFINED] = "undefined type"
 };
 
+static int  type_table_size[] = {
+	[KOT_INT] = 4, 
+	[KOT_CHAR] = 1, 
+	[KOT_BOOL] = 1,
+	[KOT_VOID] = 4,
+	[KOT_STR] = 4,
+	[KOT_FLOAT] = 4,
+	[KOT_UNDEFINED] = 0
+};
+
+
 typedef struct{
 	KOT_TYPE type;
 	char* name;
+	int32_t adr;
 }var_cell;
 
 #define STRT 0
@@ -130,6 +143,7 @@ typedef struct{
 
 
 typedef struct{
+	// gpr call convention: above x20 ( from x21 to x31 ) those are reserved as function argument
 	uint32_t gpr[GPR_NUM];
 	float fr[GPR_NUM];
 	
@@ -150,6 +164,7 @@ typedef struct{
 	char** program_source;
 	size_t program_source_size;
 	size_t program_source_tracker;
+
 }vkot_machine;
 
 
@@ -168,10 +183,10 @@ static size_t globl_fn_signature_size;
 void kot_init_vm(Arena_header*ah);
 void kot_init_interpreter(Arena_header* ah);
 
-void kot_push_globl_variable_def(Arena_header* ah,char* name, KOT_TYPE type);
+void kot_push_globl_variable_def(Arena_header* ah,char* name, KOT_TYPE type, int32_t pos);
 bool kot_globl_variable_already_present(char* name);
 
-void kot_push_variable_def(Arena_header* ah,char* name, KOT_TYPE type);
+void kot_push_variable_def(Arena_header* ah,char* name, KOT_TYPE type, int32_t pos);
 bool kot_variable_already_present(char* name);
 KOT_TYPE kot_globl_var_get_type(char* name);
 KOT_TYPE kot_var_get_type(char* name);
@@ -200,6 +215,7 @@ int kot_word_processor(Arena_header* ah, lxer_header* lh, error_handler *eh);
 	
 void kot_set_line(size_t line);
 KOT_TYPE kot_get_type_from_token(LXR_TOKENS token);
+int kot_get_size_from_type(KOT_TYPE type);
 
 float kot_process_float_literal(lxer_header* lh);
 
@@ -208,6 +224,21 @@ uint8_t* kot_pull_stack(Arena_header* ah,int size);
 uint8_t* kot_get_stack(Arena_header* ah, int size);
 size_t kot_write_heap(Arena_header* ah,uint8_t* data, int size);
 
+// note about kot_alloc_stack(int size)
+/*
+ * The role of this function is to allocate a reserved space inside the stack for variable allocation, specifically for the 
+ * instruction "PUSH" to know a position for storing information inside the data stack.
+ * To define an instruction to push a variable during execution time you need to use the macro KOT_PUSH_VAR(...) and then 
+ * offset the stack pointer by the size of the allocated variable. This means that if you want to allocate 4 byte in the 
+ * stack for an integer you first declare the instruction PUSH to write 4 bite with value N in the current stack position, and 
+ * then you need to offset the stack pointer for new allocation.
+ *
+ * So this is used only during the "compilation" process to define the position for each variable in the data stack, then during the 
+ * execution those PUSH instruction will write in the allocated position the required data. 
+ *
+ *
+ * */
+void kot_alloc_stack(int size);
 
 void kot_push_return_ptr(uint32_t ptr);
 uint32_t kot_pull_return_ptr();

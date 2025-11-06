@@ -13,18 +13,23 @@ error_handler eh = {0};
 #define DEFAULT_BUFFER_SIZE 256
 #define DEFAULT_SRC_SIZE 4
 
+// =================================================================
 
-static int hello_world(){
+// example of external linking between C function and internal Kot machine
+
+static int custom_hello(){ // signature of int __ffi_linker_callback(void);
 	printf("Hello World\n");
 	return 0;
 }
 
 void push_custon_fn(){
-	fn_signature* fn = kot_define_fn(&ah,"hello_world",0, NULL, NULL);
-	if(!kot_link_function(&ah, fn, &hello_world)){
+	fn_signature* fn = kot_define_fn(&ah,"hello",0, NULL, NULL);
+	if(!kot_link_function(&ah, fn, &custom_hello)){
 		printf("Unable to link custom function\n");
 	}
 }
+
+// =================================================================
 
 void abort(){
 	error_print_error(&eh,(print_set){false,true,false,false,true,false,false});
@@ -130,7 +135,7 @@ int main(int argc, char** argv){
 				// kot execution mode
 				fprintf(stdout, "%zu: ", line);
 				fgets(buffer, DEFAULT_BUFFER_SIZE, stdin);
-				if(strstr(buffer, "kot") == buffer){
+				if(strstr(buffer, "kot") == buffer && (*(buffer+3) == ' ' || *(buffer+3) == '\n')){
 					kot_console = true;
 				}else{
 					if(strcmp(buffer, "exit();\n") == 0){

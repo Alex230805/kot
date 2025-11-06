@@ -65,7 +65,7 @@ int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_ha
 					size_t ptr = kotvm.stack_pointer;
 					kot_push_stack((uint8_t*)string, strlen(string));
 					printf("Variable '%s' assigned with '%s'\n", name, string);
-					KOT_PUSH_VAR(name,kot_get_type_from_token(type), (uint32_t)kot_get_type_from_token(type),strlen(string), ptr);
+					KOT_INST_VAR(name,kot_get_type_from_token(type),kotvm.stack_pointer + strlen(string) ,ptr, strlen(string));
 				}
 			}
 		}else{
@@ -81,7 +81,7 @@ int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_ha
 				arg_f = kot_process_float_literal(lh);
 				arg_i = *(uint32_t*)&arg_f;
 			}
-			KOT_PUSH_VAR(name,kot_get_type_from_token(type), (uint32_t)kot_get_type_from_token(type), 4, arg_i);
+			KOT_INST_VAR(name,kot_get_type_from_token(type), kotvm.stack_pointer+4, arg_i, 0);
 		}else{
 			KOT_ERROR_PRECISE("Not a valid assignment or incomplete syntax");
 		}
@@ -178,22 +178,25 @@ int kot_word_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 					int argc = 0;
 					int exp_argc = local_sign->param_len;
 					KOT_TYPE* exp_argt = local_sign->param_type;
+					int32_t pos = 0;
+					char* var_name = NULL; 
 
 					while(token != LXR_CLOSE_BRK && status == 0 && argc < exp_argc){
-						char* var_name = lxer_get_word(lh);
-						KOT_TYPE type = KOT_UNDEFINED;;
-						
+						var_name = lxer_get_word(lh);
+						KOT_TYPE type = KOT_UNDEFINED;
+
 						if(kot_globl_variable_already_present(var_name)){
 							type = kot_globl_var_get_type(var_name);
+							pos = kot_globl_var_get_adr(var_name);
 						}else if(kot_variable_already_present(var_name)){
 							type = kot_var_get_type(var_name);
+							pos = kot_var_get_adr(var_name);
 						}else{
 							//printf("Total globl variable: %zu\n", glob_var_def_tracker);
 							KOT_ERROR_PRECISE("Unable to locate variable, did you define it??");
 						}
 
 						if(type != KOT_UNDEFINED && type == exp_argt[argc]){
-							// TODO: passing variable
 							//printf("Global variable '%s' match the expected type '%s'\n", var_name, type_table_lh[exp_argt[argc]]);
 							argc++;
 							KOT_PARSER_NEXT();
@@ -220,11 +223,26 @@ int kot_word_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 						}
 					}
 
+					if(argc > 10){
+						char* buffer = (char*)arena_alloc(ah, sizeof(char)*256);
+						char* temp = (char*)temp_alloc(sizeof(char)*32);
+						strcat(buffer, "Too many function argument, currently the maximum supported is limited to the register number for the machine, the function '");
+						sprintf(temp, "%s", name);
+						strcat(buffer, temp);
+						strcat(buffer, "' require ");
+						sprintf(temp, "%d", argc);
+						strcat(buffer, temp);
+						strcat(buffer, " arguments, but the max supported is 10 for now");
+						KOT_ERROR(buffer);
+					
+					}
 					{
 						if(status == 0){
 							if(argc == exp_argc){
+								for(int i=0;i<argc;i++){
+									kot_push_instruction(ah, IR_PULL, 21+i, pos, 0);
+								}
 								kot_push_instruction(ah, IR_CALL, *(uint32_t*)name, argc, 0);
-								TODO("Call instruction pushed, but there is no variables passing mechanism", NULL);
 							}else{
 								char* buffer = (char*)arena_alloc(ah, sizeof(char)*256);
 								char* temp = (char*)temp_alloc(sizeof(char)*32);
@@ -316,7 +334,7 @@ int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 				}
 				break;
 			case LXR_SEMICOLON:
-				KOT_PUSH_VAR(name,kot_get_type_from_token(type),(uint32_t)kot_get_type_from_token(type), 4, 0);
+				KOT_INST_VAR(name,kot_get_type_from_token(type), kotvm.stack_pointer, 0, 0);
 				break;
 			default: 
 				KOT_SYNTAX_ERR();
@@ -395,6 +413,9 @@ KOT_TYPE kot_get_type_from_token(LXR_TOKENS token){
 	return arg_type;
 }
 
+int kot_get_size_from_type(KOT_TYPE type){
+	return type_table_size[type];
+}
 
 
 float kot_process_float_literal(lxer_header* lh){
