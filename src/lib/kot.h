@@ -212,11 +212,11 @@ bool kot_single_run(inst_slice inst);
 void kot_scope_writedown(Arena_header* ah, scope* s);
 void kot_scope_list_writedown(Arena_header* ah, List_header* lh, size_t* offset);
 
-int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh);
+int kot_type_dispatch(Arena_header* ah, lxer_header* lh, error_handler *eh);
 int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh, char*name, LXR_TOKENS type);
 int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,char*name, LXR_TOKENS type);
-int kot_statement_processor(Arena_header* ah, lxer_header* lh, error_handler *eh);
-int kot_word_processor(Arena_header* ah, lxer_header* lh, error_handler *eh);
+int kot_statement_dispatch(Arena_header* ah, lxer_header* lh, error_handler *eh);
+int kot_fcall_processor(Arena_header* ah, lxer_header* lh, error_handler *eh);
 
 	
 void kot_set_line(size_t line);

@@ -19,63 +19,6 @@ void kot_get_program_list(FILE* filestream){
 	}
 }
 
-void kot_get_bytecode(){
-	// kot_get_bytecode will print the content from the bytecode of the VM, not the internal scope tree constructer during 
-	// compilation
-	fprintf(stdout, "\nCurrent program list: \n");
-	for(size_t i=0;i<kotvm.bytecode_array_tracker;i++){
-		printf("\t\t%zu: %s 0x%x, 0x%x, aux 0x%x \n", i, ir_table_lh[kotvm.bytecode_array[i].bytecode],\
-				kotvm.bytecode_array[i].arg_0,\
-				kotvm.bytecode_array[i].arg_1,\
-				kotvm.bytecode_array[i].arg_2\
-			  );
-	}
-}
-
-
-void kot_get_memory_dump(){
-	int newline = 0;
-	uint32_t i;
-	fprintf(stdout,"\nKOTVM memory dump: \n\n");
-	for(i=0;i<kotvm.def_memory_size;i++){
-		if(newline == 4) {
-			fprintf(stdout,"\n");
-			newline = 0;
-		}
-		if(newline == 0){
-			fprintf(stdout, "%*x: ", 3,i);
-		}
-		fprintf(stdout, "0x%x ",kotvm.memory[i]);
-		newline++;
-	}	
-	fprintf(stdout, "\n");
-}
-
-void kot_push_instruction(Arena_header* ah, kot_ir inst, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2){
-	inst_slice *is = (inst_slice*)arena_alloc(ah, sizeof(inst_slice));
-	is->type = INST;
-	is->bytecode = inst;
-	is->arg_0 = arg_0;
-	is->arg_1 = arg_1;
-	is->arg_2 = arg_2;
-	arena_list_push(ah, kotvm.cache_scope->list, is);
-	if(kotvm.cache_scope->type == STRT){
-		if(kotvm.bytecode_array_tracker + 1 > kotvm.bytecode_array_size){
-			inst_slice* old_arr = kotvm.bytecode_array;
-			kotvm.bytecode_array = (inst_slice*)arena_alloc(ah, sizeof(inst_slice)*kotvm.bytecode_array_size*2);
-			kotvm.bytecode_array_size = kotvm.bytecode_array_size*2;
-			memcpy(kotvm.bytecode_array, old_arr, sizeof(inst_slice)*kotvm.bytecode_array_tracker);
-		}
-		kotvm.bytecode_array[kotvm.bytecode_array_tracker] = *is;
-		kotvm.bytecode_array_tracker += 1;
-	}
-}
-
-
-inst_slice kot_get_current_inst(){
-	return kotvm.bytecode_array[kotvm.program_counter];
-}
-
 void kot_push_globl_variable_def(Arena_header* ah,char* name, KOT_TYPE type, int32_t pos){
 	//NOTY("GLOBAL ACTION", "Pushing global variable '%s'", name);
 	if(glob_var_def_tracker += 1 >= glob_var_def_size){
@@ -232,99 +175,6 @@ void kot_set_line(size_t cline){
 	line = cline;
 }
 
-void kot_pc_inc(){
-	kotvm.program_counter += 1;
-}
-
-void kot_push_stack(uint8_t* data, int size){
-	for(size_t i=0; i < size; i++){
-		kotvm.memory[kotvm.stack_pointer] = data[i];
-		if(kotvm.stack_pointer + 1 >= DEF_STACK_LIMIT){
-			kotvm.stack_pointer = 0;
-		}else{
-			kotvm.stack_pointer += 1;
-		}
-	}
-}
-
-void kot_alloc_stack(int size){
-	//printf("Requiring %d reserved stack space\n", size);
-	for(size_t i=0; i < size; i++){
-		if(kotvm.stack_pointer + 1 >= DEF_STACK_LIMIT){
-			kotvm.stack_pointer = 0;
-		}else{
-			kotvm.stack_pointer += 1;
-		}
-	}
-}
-
-uint8_t* kot_pull_stack(Arena_header* ah, int size){
-	uint8_t* buffer = (uint8_t*)arena_alloc(ah, sizeof(uint8_t)*size);
-	for(size_t i=0; i < size; i++){
-		buffer[i] = kotvm.memory[kotvm.stack_pointer];
-		if(kotvm.stack_pointer - 1 < DEF_STACK_INIT){
-			kotvm.stack_pointer = DEF_STACK_LIMIT;
-		}else{
-			kotvm.stack_pointer -= 1;
-		}
-	}
-	return buffer;
-}
-
-uint8_t* kot_get_stack(Arena_header* ah, int size){
-	uint32_t og_ptr = kotvm.stack_pointer;
-	uint8_t* buffer = (uint8_t*)arena_alloc(ah, sizeof(uint8_t)*size);
-	for(size_t i=0; i < size; i++){
-		buffer[i] = kotvm.memory[kotvm.stack_pointer];
-		if(kotvm.stack_pointer - 1 < DEF_STACK_INIT){
-			kotvm.stack_pointer = DEF_STACK_LIMIT;
-		}else{
-			kotvm.stack_pointer -= 1;
-		}
-	}
-	kotvm.stack_pointer = og_ptr;
-	return buffer;
-}
-
-size_t kot_write_heap(Arena_header* ah,uint8_t* data, int size){
-	if(kotvm.memory_tracker + size >= kotvm.def_memory_size){
-		uint8_t *old_mem = kotvm.memory;
-		kotvm.memory = (uint8_t*)arena_alloc(ah, sizeof(uint8_t)*kotvm.def_memory_size*2);
-		kotvm.def_memory_size *= 2;
-		memcpy(kotvm.memory, old_mem,kotvm.memory_tracker);
-	}
-	size_t ptr = kotvm.memory_tracker;
-	memcpy(kotvm.memory+ptr, data, size);
-	kotvm.memory[ptr+size] = '\0';
-	kotvm.memory_tracker += size+1;
-	return ptr;
-}
-
-
-void kot_push_return_ptr(uint32_t ptr){
-	for(size_t i=0; i < 4; i++){
-		kotvm.memory[kotvm.call_stack_pointer] = ptr >> i*8;
-		if(kotvm.call_stack_pointer + 1 >= DEF_STK_CALL_LIMIT){
-			kotvm.call_stack_pointer = 0;
-		}else{
-			kotvm.call_stack_pointer += 1;
-		}
-	}
-}
-
-uint32_t kot_pull_return_ptr(){	
-	uint32_t kot_cache_fn_pointer = 0;
-	for(size_t i=0; i < 4; i++){
-		kot_cache_fn_pointer = kot_cache_fn_pointer |  kotvm.memory[kotvm.call_stack_pointer] << i*8;
-		if(kotvm.call_stack_pointer - 1 < DEF_STK_CALL_INIT){
-			kotvm.call_stack_pointer = DEF_STK_CALL_LIMIT;
-		}else{
-			kotvm.call_stack_pointer -= 1;
-		}
-	}
-	return kot_cache_fn_pointer; 
-}
-
 
 bool kot_link_function(Arena_header* ah, fn_signature *fn, __ffi_linker_callback fn_call){
 	if(!kot_fn_already_declared(fn->name)){
@@ -341,4 +191,72 @@ bool kot_link_function(Arena_header* ah, fn_signature *fn, __ffi_linker_callback
 		return true;
 	}
 	return false;
+}
+
+
+KOT_TYPE kot_get_type_from_token(LXR_TOKENS token){
+	KOT_TYPE arg_type = KOT_UNDEFINED;
+	switch(token){
+		case LXR_STRING_TYPE: 
+			arg_type = KOT_STR;
+			break;
+		case LXR_INT_TYPE: 
+			arg_type = KOT_INT;
+			break;
+		case LXR_FLOAT_TYPE: 
+			arg_type = KOT_FLOAT;
+			break;
+		case LXR_CHAR_TYPE:
+			arg_type = KOT_CHAR;
+			break;
+		case LXR_VOID_TYPE: 
+			arg_type = KOT_VOID;
+			break;
+		default: break;
+	}
+	return arg_type;
+}
+
+int kot_get_size_from_type(KOT_TYPE type){
+	return type_table_size[type];
+}
+
+void kot_scope_writedown(Arena_header* ah, scope* s){
+	size_t* offset = (size_t*)temp_alloc(sizeof(size_t));
+	kot_scope_list_writedown(ah, s->list,offset);
+	//printf("Previous execution target: %d\n", kotvm.program_counter);
+	kotvm.program_counter += *offset;
+	//printf("New program execution target: %d\n",kotvm.program_counter);
+	return;
+}
+
+void kot_scope_list_writedown(Arena_header* ah, List_header* lh, size_t* offset){
+	for(size_t i=0;lh->count; i++){
+		inst_slice * d = list_get_at(lh, i);
+		if(d == NULL) break;
+		if(d->type != INST){
+			if(d->type == FUNC){
+				scope* sc = list_get_at(lh, i);
+				kot_scope_list_writedown(ah, sc->list, offset);
+			}else if(d->type == COND){
+				scope_branch* sb = list_get_at(lh, i);
+				kot_scope_list_writedown(ah, sb->branch_true->list, offset);
+				if(sb->branch_false != NULL){
+					kot_scope_list_writedown(ah, sb->branch_false->list, offset);
+				}
+			}
+		}else if(d->type == INST){
+			if(kotvm.bytecode_array_tracker + 1 > kotvm.bytecode_array_size){
+				inst_slice* old_arr = kotvm.bytecode_array;
+				kotvm.bytecode_array = (inst_slice*)arena_alloc(ah, sizeof(inst_slice)*kotvm.bytecode_array_size*2);
+				kotvm.bytecode_array_size = kotvm.bytecode_array_size*2;
+				memcpy(kotvm.bytecode_array, old_arr, sizeof(inst_slice)*kotvm.bytecode_array_tracker);
+			}
+			kotvm.bytecode_array[kotvm.bytecode_array_tracker] = *d;
+			kotvm.bytecode_array_tracker += 1;
+			//printf("Instruction found\n");
+			*offset += 1;
+		}
+	}
+	return;
 }
