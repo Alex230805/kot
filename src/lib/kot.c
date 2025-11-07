@@ -62,10 +62,8 @@ int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_ha
 				if(next_token != LXR_SEMICOLON){
 					KOT_ERROR_PRECISE("Missing semicolon");
 				}else{
-					size_t ptr = kotvm.stack_pointer;
-					kot_push_stack((uint8_t*)string, strlen(string));
-					//printf("Variable '%s' assigned with '%s'\n", name, string);
-					KOT_INST_VAR(name,kot_get_type_from_token(type),ptr, 0, strlen(string));
+					KOT_INST_VAR(name,kot_get_type_from_token(type),kotvm.stack_pointer, (size_t)string, strlen(string));
+					kot_alloc_stack(strlen(string));
 				}
 			}
 		}else{
@@ -357,7 +355,7 @@ int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 				break;
 		}
 	}else{
-		KOT_SYNTAX_ERR();
+		KOT_ERROR("Missing semicolon or syntax error");
 	}	
 	return status;
 }
@@ -393,7 +391,21 @@ int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh, bool console
 					KOT_ERROR("Brachets has no start point or it's out of place");
 				}else{
 					//printf("Going up the hierarchy to %p\n", kotvm.cache_scope->master);
-					kotvm.cache_scope = kotvm.cache_scope->master; // going up the hierarchy
+					if(kotvm.cache_scope->type == FUNC){
+						inst_slice* i = list_get_at(kotvm.cache_scope->list, kotvm.cache_scope->list->count-1);
+						if(i != NULL){
+							if(i->bytecode != IR_RETRN){
+								kot_push_instruction(ah, IR_RETRN, 0, 0, 0);
+							}
+						}
+					}
+					kotvm.cache_scope = kotvm.cache_scope->master;
+					if(kotvm.cache_scope->type == STRT){
+						scope* s = list_get_at(kotvm.cache_scope->list, kotvm.cache_scope->list->count-1);
+						if(s->type == FUNC){
+							kot_scope_writedown(ah, s);
+						}
+					}
 				}
 			}
 		}
@@ -448,4 +460,44 @@ float kot_process_float_literal(lxer_header* lh){
 		f = (float)atof(lit);
 	}
 	return f;
+}
+
+void kot_scope_writedown(Arena_header* ah, scope* s){
+	size_t* offset = (size_t*)temp_alloc(sizeof(size_t));
+	kot_scope_list_writedown(ah, s->list,offset);
+	//printf("Previous execution target: %d\n", kotvm.program_counter);
+	kotvm.program_counter += *offset;
+	//printf("New program execution target: %d\n",kotvm.program_counter);
+	return;
+}
+
+void kot_scope_list_writedown(Arena_header* ah, List_header* lh, size_t* offset){
+	for(size_t i=0;lh->count; i++){
+		inst_slice * d = list_get_at(lh, i);
+		if(d == NULL) break;
+		if(d->type != INST){
+			if(d->type == FUNC){
+				scope* sc = list_get_at(lh, i);
+				kot_scope_list_writedown(ah, sc->list, offset);
+			}else if(d->type == COND){
+				scope_branch* sb = list_get_at(lh, i);
+				kot_scope_list_writedown(ah, sb->branch_true->list, offset);
+				if(sb->branch_false != NULL){
+					kot_scope_list_writedown(ah, sb->branch_false->list, offset);
+				}
+			}
+		}else if(d->type == INST){
+			if(kotvm.bytecode_array_tracker + 1 > kotvm.bytecode_array_size){
+				inst_slice* old_arr = kotvm.bytecode_array;
+				kotvm.bytecode_array = (inst_slice*)arena_alloc(ah, sizeof(inst_slice)*kotvm.bytecode_array_size*2);
+				kotvm.bytecode_array_size = kotvm.bytecode_array_size*2;
+				memcpy(kotvm.bytecode_array, old_arr, sizeof(inst_slice)*kotvm.bytecode_array_tracker);
+			}
+			kotvm.bytecode_array[kotvm.bytecode_array_tracker] = *d;
+			kotvm.bytecode_array_tracker += 1;
+			//printf("Instruction found\n");
+			*offset += 1;
+		}
+	}
+	return;
 }

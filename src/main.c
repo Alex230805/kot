@@ -153,8 +153,6 @@ int main(int argc, char** argv){
 					}else{
 						line++;
 						lh.lxer_tracker = 0;
-						//kot_single_run(kot_get_current_inst());
-						kot_pc_inc();
 					}
 				}
 			}

@@ -24,12 +24,11 @@ void kot_get_bytecode(){
 	// compilation
 	fprintf(stdout, "\nCurrent program list: \n");
 	for(size_t i=0;i<kotvm.bytecode_array_tracker;i++){
-		printf("\t\t%zu: %s -1x%x, 0x%x, aux 0x%x \t\t| ", i, ir_table_lh[kotvm.bytecode_array[i].bytecode],\
+		printf("\t\t%zu: %s 0x%x, 0x%x, aux 0x%x \n", i, ir_table_lh[kotvm.bytecode_array[i].bytecode],\
 				kotvm.bytecode_array[i].arg_0,\
 				kotvm.bytecode_array[i].arg_1,\
 				kotvm.bytecode_array[i].arg_2\
 			  );
-		printf("\n");
 	}
 }
 
@@ -54,12 +53,22 @@ void kot_get_memory_dump(){
 
 void kot_push_instruction(Arena_header* ah, kot_ir inst, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2){
 	inst_slice *is = (inst_slice*)arena_alloc(ah, sizeof(inst_slice));
+	is->type = INST;
 	is->bytecode = inst;
 	is->arg_0 = arg_0;
 	is->arg_1 = arg_1;
 	is->arg_2 = arg_2;
 	arena_list_push(ah, kotvm.cache_scope->list, is);
-	//if(!is_fn) printf("Pushing new instruction inside scope %p\n", kotvm.cache_scope);
+	if(kotvm.cache_scope->type == STRT){
+		if(kotvm.bytecode_array_tracker + 1 > kotvm.bytecode_array_size){
+			inst_slice* old_arr = kotvm.bytecode_array;
+			kotvm.bytecode_array = (inst_slice*)arena_alloc(ah, sizeof(inst_slice)*kotvm.bytecode_array_size*2);
+			kotvm.bytecode_array_size = kotvm.bytecode_array_size*2;
+			memcpy(kotvm.bytecode_array, old_arr, sizeof(inst_slice)*kotvm.bytecode_array_tracker);
+		}
+		kotvm.bytecode_array[kotvm.bytecode_array_tracker] = *is;
+		kotvm.bytecode_array_tracker += 1;
+	}
 }
 
 
@@ -210,6 +219,7 @@ KOT_TYPE kot_var_get_type(char* name){
 fn_signature* kot_define_fn(Arena_header* ah,char* name,int param_len, KOT_TYPE* param_type, scope* fn_scope){
 	fn_signature* fn = (fn_signature*)arena_alloc(ah, sizeof(fn_signature));
 	fn->name = (char*)arena_alloc(ah, sizeof(char)*strlen(name));
+	fn->position = kotvm.bytecode_array_tracker;
 	strcpy(fn->name, name);
 	fn->param_len = param_len;
 	fn->param_type = param_type;

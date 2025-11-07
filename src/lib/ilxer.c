@@ -171,11 +171,22 @@ void lxer_start_lexing(lxer_header* lh, char * source){
 			}
 		}
 		if(valid_word){
+			bool cl_end = false;
+			char* cleaned_word = (char*)arena_alloc(&lh->lxer_ah, sizeof(char)*512);
+			size_t tr_copy_tracker = 0;
+			for(size_t tr = 0; tr < word_size && !cl_end; tr++){
+				if(word_buffer[tr] >= '0'){
+					cleaned_word[tr_copy_tracker] = word_buffer[tr];
+					tr_copy_tracker += 1;
+				}
+			}
+			cleaned_word[tr_copy_tracker] = '\0';
 			pre_cache_mem[pre_array_tracker].token = LXR_WORD;
-			pre_cache_mem[pre_array_tracker].byte_pointer = word_buffer;
+			pre_cache_mem[pre_array_tracker].byte_pointer = cleaned_word;
 			pre_cache_mem[pre_array_tracker].line = lh->stream_out[i].line;
 			pre_array_tracker += 1;
 		}
+		
 		if(lh->stream_out[i].token != LXR_SPACE && lh->stream_out[i].token != LXR_NEW_LINE){
 			pre_cache_mem[pre_array_tracker] = lh->stream_out[i];
 			pre_array_tracker += 1;

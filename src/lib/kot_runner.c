@@ -10,7 +10,7 @@
 void kot_run(){
 	for(;;){
 		inst_slice inst = kotvm.bytecode_array[kotvm.program_counter];
-		if(kot_single_run(inst)) break;
+		if(kot_single_run(inst) && kotvm.program_counter < kotvm.bytecode_array_tracker) break;
 		kotvm.program_counter+=1;
 	}
 }

@@ -44,6 +44,8 @@ static kot_ir ir_table[] = {
 	
 	//  call(arg_0 = fn_name pointer, arg_1 = arg count, arg_3 = 0)
 	IR_CALL,
+	
+	// retrn(arg_0 = data, arg_1 = 0, arg_2 = 0)
 	IR_RETRN,
 	IR_HALT,
 	IR_ILLEGAL,
@@ -59,14 +61,6 @@ static char* ir_table_lh[] = {
 	[IR_HALT] = "halt",
 	[IR_ILLEGAL] = "illegal"
 };
-
-typedef struct{
-	kot_ir bytecode;
-	uint32_t arg_0;
-	uint32_t arg_1;
-	uint32_t arg_2;
-}inst_slice;
-
 typedef enum{
 	KOT_INT, 
 	KOT_CHAR, 
@@ -109,6 +103,7 @@ typedef struct{
 #define COND 1
 #define FUNC 2
 #define FFI  3
+#define INST 4
 
 typedef int(*__ffi_linker_callback)(void);
 
@@ -135,7 +130,17 @@ typedef struct{
 
 
 typedef struct{
+	int type;
+	kot_ir bytecode;
+	uint32_t arg_0;
+	uint32_t arg_1;
+	uint32_t arg_2;
+}inst_slice;
+
+
+typedef struct{
 	char* name;
+	size_t position;
 	size_t param_len;
 	KOT_TYPE* param_type;
 	scope* fn_scope;
@@ -204,7 +209,8 @@ int kot_parse(Arena_header* ah,lxer_header* lh, error_handler *eh, bool console)
 
 void kot_run();
 bool kot_single_run(inst_slice inst);
-
+void kot_scope_writedown(Arena_header* ah, scope* s);
+void kot_scope_list_writedown(Arena_header* ah, List_header* lh, size_t* offset);
 
 int kot_type_processor(Arena_header* ah, lxer_header* lh, error_handler *eh);
 int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh, char*name, LXR_TOKENS type);
