@@ -19,7 +19,7 @@ void kot_get_program_list(FILE* filestream){
 	}
 }
 
-void kot_push_globl_variable_def(Arena_header* ah,char* name, KOT_TYPE type, int32_t pos){
+void kot_push_globl_variable_def(char* name, KOT_TYPE type, int32_t pos){
 	//NOTY("GLOBAL ACTION", "Pushing global variable '%s'", name);
 	if(glob_var_def_tracker += 1 >= glob_var_def_size){
 		var_cell* old_arr = glob_var_def;
@@ -45,7 +45,7 @@ bool kot_globl_variable_already_present(char* name){
 	}
 	return false;
 }
-void kot_push_variable_def(Arena_header* ah,char* name, KOT_TYPE type, int32_t pos){
+void kot_push_variable_def(char* name, KOT_TYPE type, int32_t pos){
 	//NOTY("LOCAL ACTION", "Pushing local variable '%s'", name);
 	if(kotvm.cache_scope->var_def_tracker += 1 >= kotvm.cache_scope->var_def_size){
 		var_cell* old_arr = kotvm.cache_scope->var_def;
@@ -88,7 +88,7 @@ int32_t kot_globl_var_get_adr(char* name){
 
 
 
-void kot_push_fn_dec(Arena_header* ah, fn_signature fn){
+void kot_push_fn_dec(fn_signature fn){
 	if(globl_fn_signature_tracker += 1 >= globl_fn_signature_size){
 		fn_signature* old_arr = globl_fn_signature;
 		globl_fn_signature = (fn_signature*)arena_alloc(ah,sizeof(fn_signature)*globl_fn_signature_size*2);
@@ -159,7 +159,7 @@ KOT_TYPE kot_var_get_type(char* name){
 	return KOT_UNDEFINED;
 }
 
-fn_signature* kot_define_fn(Arena_header* ah,char* name,int param_len, KOT_TYPE* param_type, scope* fn_scope){
+fn_signature* kot_define_fn(char* name,int param_len, KOT_TYPE* param_type, scope* fn_scope){
 	fn_signature* fn = (fn_signature*)arena_alloc(ah, sizeof(fn_signature));
 	fn->name = (char*)arena_alloc(ah, sizeof(char)*strlen(name));
 	fn->position = kotvm.bytecode_array_tracker;
@@ -176,7 +176,7 @@ void kot_set_line(size_t cline){
 }
 
 
-bool kot_link_function(Arena_header* ah, fn_signature *fn, __ffi_linker_callback fn_call){
+bool kot_link_function(fn_signature *fn, __ffi_linker_callback fn_call){
 	if(!kot_fn_already_declared(fn->name)){
 		scope *new_scope = (scope*)arena_alloc(ah, sizeof(scope));
 		new_scope->type = FFI;
@@ -187,7 +187,7 @@ bool kot_link_function(Arena_header* ah, fn_signature *fn, __ffi_linker_callback
 		new_scope->fn_pointer = fn_call;
 		new_scope->list = NULL;	
 		fn->fn_scope = new_scope;
-		kot_push_fn_dec(ah, *fn);
+		kot_push_fn_dec(*fn);
 		return true;
 	}
 	return false;
@@ -221,28 +221,28 @@ int kot_get_size_from_type(KOT_TYPE type){
 	return type_table_size[type];
 }
 
-void kot_scope_writedown(Arena_header* ah, scope* s){
+void kot_scope_writedown(scope* s){
 	size_t* offset = (size_t*)temp_alloc(sizeof(size_t));
-	kot_scope_list_writedown(ah, s->list,offset);
+	kot_scope_list_writedown(s->list,offset);
 	//printf("Previous execution target: %d\n", kotvm.program_counter);
 	kotvm.program_counter += *offset;
 	//printf("New program execution target: %d\n",kotvm.program_counter);
 	return;
 }
 
-void kot_scope_list_writedown(Arena_header* ah, List_header* lh, size_t* offset){
+void kot_scope_list_writedown(List_header* lh, size_t* offset){
 	for(size_t i=0;lh->count; i++){
 		inst_slice * d = list_get_at(lh, i);
 		if(d == NULL) break;
 		if(d->type != INST){
 			if(d->type == FUNC){
 				scope* sc = list_get_at(lh, i);
-				kot_scope_list_writedown(ah, sc->list, offset);
+				kot_scope_list_writedown(sc->list, offset);
 			}else if(d->type == COND){
 				scope_branch* sb = list_get_at(lh, i);
-				kot_scope_list_writedown(ah, sb->branch_true->list, offset);
+				kot_scope_list_writedown(sb->branch_true->list, offset);
 				if(sb->branch_false != NULL){
-					kot_scope_list_writedown(ah, sb->branch_false->list, offset);
+					kot_scope_list_writedown(sb->branch_false->list, offset);
 				}
 			}
 		}else if(d->type == INST){

@@ -5,7 +5,7 @@
  * */
 
 
-int kot_statement_dispatch(Arena_header* ah, lxer_header* lh, error_handler *eh){
+int kot_statement_dispatch(){
 	int status = 0;
 	LXR_TOKENS token, next_token;
 	KOT_PARSER_REFRESH();
@@ -34,7 +34,7 @@ int kot_statement_dispatch(Arena_header* ah, lxer_header* lh, error_handler *eh)
 }
 
 
-int kot_type_dispatch(Arena_header* ah, lxer_header* lh, error_handler *eh){
+int kot_type_dispatch(){
 	int status = 0;
 	LXR_TOKENS token, next_token, type, cache_token; 
 	KOT_PARSER_REFRESH();
@@ -46,35 +46,36 @@ int kot_type_dispatch(Arena_header* ah, lxer_header* lh, error_handler *eh){
 	}else{
 		KOT_ERROR("No name provided");
 	}
-	if(lxer_is_statement(next_token) || lxer_is_sep(next_token) || lxer_is_brk(next_token)){
-		KOT_PARSER_NEXT();
-		switch(token){
-			case LXR_ASSIGNMENT:
-				status = kot_variable_argument_processor(ah,lh,eh, name,type);
-				break;
-			case LXR_OPEN_BRK:
-				if(kotvm.cache_scope->type == STRT){
-					status = kot_function_processor(ah, lh, eh, name, type);
-				}else{
-					KOT_ERROR("You cannot declare a function scope inside another function body");
-				}
-				break;
-			case LXR_SEMICOLON:
-				KOT_INST_VAR(name,kot_get_type_from_token(type), kotvm.stack_pointer, 0, 0);
-				break;
-			default: 
-				KOT_SYNTAX_ERR();
-				break;
-		}
-	}else{
-		KOT_ERROR("Missing semicolon or syntax error");
-	}	
+	switch(next_token){
+		case LXR_ASSIGNMENT:
+		case LXR_COMMA:
+		case LXR_SEMICOLON:
+			status = kot_variable_argument_processor(name,type);
+			break;
+		case LXR_OPEN_BRK:
+			KOT_PARSER_NEXT();
+			if(kotvm.cache_scope->type == STRT){
+				status = kot_function_processor(name, type);
+			}else{
+				KOT_ERROR("You cannot declare a function scope inside another function body");
+			}
+			break;
+		/*
+		case LXR_SEMICOLON:
+			KOT_PARSER_NEXT();
+			KOT_INST_VAR(name,kot_get_type_from_token(type), kotvm.stack_pointer, 0, 0);	
+			break;
+		*/
+		default: 
+			KOT_ERROR_PRECISE("Missing semicolon");
+			break;
+	}
 	return status;
 }
 
 /* MAIN PARSER LOOP */
 
-int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh, bool console){
+int kot_parse(bool console){
 	LXR_TOKENS token, next_token, cache_token;
 	int status = 0;
 	if(lh->stream_out_len < 2){
@@ -83,19 +84,19 @@ int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh, bool console
 			return 0;
 		}
 	}
-	if(DEBUG) lxer_get_lxer_content(lh);
+	//lxer_get_lxer_content(lh);
 	while(status == 0 && lxer_get_current_token(lh) != TOKEN_TABLE_END){
 		token = lxer_get_current_token(lh);
 		next_token = lxer_get_next_token(lh);
 
 		if(lxer_is_type(token)){
-			status = kot_type_dispatch(ah, lh, eh);
+			status = kot_type_dispatch();
 		}
 		if(lxer_is_statement(token)){
-			status = kot_statement_dispatch(ah, lh, eh);
+			status = kot_statement_dispatch();
 		}
 		if(token == LXR_WORD){
-			status = kot_fcall_processor(ah, lh, eh);
+			status = kot_fcall_processor();
 		}
 		if(lxer_is_brk(token)){
 			if(token == LXR_CLOSE_CRL_BRK){
@@ -107,7 +108,7 @@ int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh, bool console
 						inst_slice* i = list_get_at(kotvm.cache_scope->list, kotvm.cache_scope->list->count-1);
 						if(i != NULL){
 							if(i->bytecode != IR_RETRN){
-								kot_push_instruction(ah, IR_RETRN, 0, 0, 0);
+								kot_push_instruction(IR_RETRN, 0, 0, 0);
 							}
 						}
 					}
@@ -115,7 +116,7 @@ int kot_parse(Arena_header* ah, lxer_header* lh, error_handler *eh, bool console
 					if(kotvm.cache_scope->type == STRT){
 						scope* s = list_get_at(kotvm.cache_scope->list, kotvm.cache_scope->list->count-1);
 						if(s->type == FUNC){
-							kot_scope_writedown(ah, s);
+							kot_scope_writedown(s);
 						}
 					}
 				}

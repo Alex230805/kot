@@ -7,7 +7,7 @@
  * */
 
 
-int kot_fcall_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
+int kot_fcall_processor(){
 	int status = 0;
 	LXR_TOKENS token, next_token;
 	KOT_PARSER_REFRESH();
@@ -105,9 +105,9 @@ int kot_fcall_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 							if(argc == exp_argc){
 								for(int i=0;i<argc;i++){
 									//printf("Adding pull instruction for variable located at 0x%x, load destination is register %d\n", var_adr[i], 21+i);
-									kot_push_instruction(ah, IR_PULL, 21+i, var_adr[i], 0);
+									kot_push_instruction(IR_PULL, 21+i, var_adr[i], 0);
 								}
-								kot_push_instruction(ah, IR_CALL, *(uint32_t*)name, argc, 0);
+								kot_push_instruction(IR_CALL, *(uint32_t*)name, argc, 0);
 							}else{
 								char* buffer = (char*)arena_alloc(ah, sizeof(char)*256);
 								char* temp = (char*)temp_alloc(sizeof(char)*32);
@@ -142,7 +142,7 @@ int kot_fcall_processor(Arena_header* ah, lxer_header* lh, error_handler *eh){
 	}	
 	return status;
 }
-int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh, char* name, LXR_TOKENS type){
+int kot_function_processor(char* name, LXR_TOKENS type){
 	int status = 0;
 	int args = 0;
 	LXR_TOKENS token, next_token;
@@ -156,8 +156,8 @@ int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,
 				scope *new_scope = (scope*)arena_alloc(ah, sizeof(scope));
 				//printf("Switching to new scope %p from %p\n", new_scope, kotvm.cache_scope);
 				SWITCH_SCOPE(FUNC);
-				fn = kot_define_fn(ah,name,0, NULL, new_scope);
-				kot_push_fn_dec(ah, *fn);
+				fn = kot_define_fn(name,0, NULL, new_scope);
+				kot_push_fn_dec(*fn);
 			}else{
 				KOT_ERROR("Function already defined");
 			}
@@ -196,8 +196,8 @@ int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,
 				scope *new_scope = (scope*)arena_alloc(ah, sizeof(scope));
 				//printf("Switching to new scope %p from %p\n", new_scope, kotvm.cache_scope);
 				SWITCH_SCOPE(FUNC);	
-				fn = kot_define_fn(ah,name,args, param_type, new_scope);
-				kot_push_fn_dec(ah, *fn);
+				fn = kot_define_fn(name,args, param_type, new_scope);
+				kot_push_fn_dec(*fn);
 			}else{
 				KOT_ERROR("Function already defined");
 			}

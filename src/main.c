@@ -6,9 +6,9 @@
 #include "misc.h"
 #include "kot.h"
 
-Arena_header ah = {0};
-lxer_header lh = {0};
-error_handler eh = {0}; 
+static Arena_header  arena;
+static lxer_header   lxer;
+static error_handler error;
 
 #define DEFAULT_BUFFER_SIZE 256
 #define DEFAULT_SRC_SIZE 4
@@ -23,8 +23,8 @@ static int custom_hello(){ // signature of int __ffi_linker_callback(void);
 }
 
 void push_custon_fn(){
-	fn_signature* fn = kot_define_fn(&ah,"hello",0, NULL, NULL);
-	if(!kot_link_function(&ah, fn, &custom_hello)){
+	fn_signature* fn = kot_define_fn("hello",0, NULL, NULL);
+	if(!kot_link_function(fn, &custom_hello)){
 		printf("Unable to link custom function\n");
 	}
 }
@@ -32,22 +32,22 @@ void push_custon_fn(){
 // =================================================================
 
 void abort(){
-	error_print_error(&eh,(print_set){false,true,false,false,true,false,false});
-	arena_free(&eh.ah);
-	arena_free(&ah);
-	arena_free(&lh.lxer_ah);
+	error_print_error(&error,(print_set){false,true,false,false,true,false,false});
+	arena_free(&error.ah);
+	arena_free(&arena);
+	arena_free(&lxer.lxer_ah);
 	exit(1);
 }
 
 void kot_report(){
-	error_print_error(&eh,(print_set){true,true,true,true,true,true,true});
+	error_print_error(&error,(print_set){true,true,true,true,true,true,true});
 }
 
 
 void finish(){
-	arena_free(&eh.ah);
-	arena_free(&ah);
-	arena_free(&lh.lxer_ah);
+	arena_free(&error.ah);
+	arena_free(&arena);
+	arena_free(&lxer.lxer_ah);
 	exit(0);
 }
 
@@ -80,7 +80,7 @@ void kot_helper(){
 		as part of what can be parser, it will have no effect on\n\
 		the program. For example any function implementation\n\
 		will automatically declare it and pushit in a general\n\
-		namespace, ready to be reached from all point in the program\n");
+		namespace, ready to be reached from all point in the program\n\n");
 	fprintf(stdout,"\n===========================================================\n");
 }
 
@@ -108,15 +108,17 @@ int main(int argc, char** argv){
 			file_pos_ptr = i;
 		}
 	}
-	kot_init_interpreter(&ah);
-	kot_init_vm(&ah);
+	kot_init_interpreter(&arena, &lxer, &error);
+	kot_init_vm();
+	// NOTE: you can define custom function only after the interpreter initialization
 	push_custon_fn();
+	
 	if(!file_provided){
 		fputs("Starting kot in console mode\n\n", stdout);
 		size_t line = 0;
 		bool kot_console = false;
 		while(true){
-			buffer = (char*)arena_alloc(&ah, sizeof(char)*DEFAULT_BUFFER_SIZE);
+			buffer = (char*)arena_alloc(&arena, sizeof(char)*DEFAULT_BUFFER_SIZE);
 			if(kot_console){
 				// kot console mode
 				fprintf(stdout, "kot:> ");
@@ -145,28 +147,30 @@ int main(int argc, char** argv){
 						finish();
 					}
 					kot_set_line(line);
-					lxer_start_lexing(&lh, buffer);
-					if(kot_parse(&ah,&lh, &eh, true)){
-						lh.lxer_tracker = 0;
+					lxer_start_lexing(&lxer, buffer);
+					if(kot_parse(true)){
+						lxer.lxer_tracker = 0;
 						kot_report();
-						eh.tracker = 0;
+						error.tracker = 0;
 					}else{
 						line++;
-						lh.lxer_tracker = 0;
+						lxer.lxer_tracker = 0;
 					}
 				}
 			}
 		}
 	}else{
 		// file execution mode
-		file = read_file_no_error(&ah,argv[file_pos_ptr]);
+		file = read_file_no_error(&arena,argv[file_pos_ptr]);
 		if(!file->string){
-			error_push_error(&eh, "Unable to find the specified file", 0, 1, NULL, 0);
+			error_push_error(&error, "Unable to find the specified file", 0, 1, NULL, 0);
 			abort();
 		}
-		kot_init_interpreter(&ah);
-		kot_init_vm(&ah);
-		kot_parse(&ah, &lh, &eh, false);
+		kot_init_interpreter(&arena, &lxer, &error);
+		kot_init_vm();
+		// NOTE: you can define custom function only after the interpreter initialization
+		push_custon_fn();
+		kot_parse(false);
 		kot_run();
 		if(md_out) kot_get_memory_dump();
 		if(ir_out) kot_get_bytecode();

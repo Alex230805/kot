@@ -6,7 +6,10 @@
  * */
 
 
-void kot_init_interpreter(Arena_header* ah){
+void kot_init_interpreter(Arena_header* arena, lxer_header* lxer, error_handler* error){
+	ah = arena;
+	lh = lxer;
+	eh = error;
 	glob_var_def = (var_cell*)arena_alloc(ah,sizeof(var_cell)*DEF_GET_ARR_SIZE);
 	glob_var_def_tracker = 0;
 	glob_var_def_size = DEF_GET_ARR_SIZE;
@@ -14,10 +17,9 @@ void kot_init_interpreter(Arena_header* ah){
 	globl_fn_signature = (fn_signature*)arena_alloc(ah, sizeof(fn_signature)*DEF_GET_ARR_SIZE);
 	globl_fn_signature_tracker = 0;
 	globl_fn_signature_size = DEF_GET_ARR_SIZE;
-
 }
 
-void kot_init_vm(Arena_header*ah){
+void kot_init_vm(){
 	kotvm.program_counter = 0x00;
 	memset(kotvm.gpr, 0, sizeof(uint32_t)*GPR_NUM);
 	memset(kotvm.fr, 0, sizeof(float)*GPR_NUM);
@@ -80,7 +82,7 @@ void kot_get_memory_dump(){
 	fprintf(stdout, "\n");
 }
 
-void kot_push_instruction(Arena_header* ah, kot_ir inst, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2){
+void kot_push_instruction(kot_ir inst, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2){
 	inst_slice *is = (inst_slice*)arena_alloc(ah, sizeof(inst_slice));
 	is->type = INST;
 	is->bytecode = inst;
@@ -131,7 +133,7 @@ void kot_alloc_stack(int size){
 	}
 }
 
-uint8_t* kot_pull_stack(Arena_header* ah, int size){
+uint8_t* kot_pull_stack(int size){
 	uint8_t* buffer = (uint8_t*)arena_alloc(ah, sizeof(uint8_t)*size);
 	for(size_t i=0; i < size; i++){
 		buffer[i] = kotvm.memory[kotvm.stack_pointer];
@@ -144,7 +146,7 @@ uint8_t* kot_pull_stack(Arena_header* ah, int size){
 	return buffer;
 }
 
-uint8_t* kot_get_stack(Arena_header* ah, int size){
+uint8_t* kot_get_stack(int size){
 	uint32_t og_ptr = kotvm.stack_pointer;
 	uint8_t* buffer = (uint8_t*)arena_alloc(ah, sizeof(uint8_t)*size);
 	for(size_t i=0; i < size; i++){
@@ -160,7 +162,7 @@ uint8_t* kot_get_stack(Arena_header* ah, int size){
 }
 
 
-size_t kot_write_heap(Arena_header* ah,uint8_t* data, int size){
+size_t kot_write_heap(uint8_t* data, int size){
 	if(kotvm.memory_tracker + size >= kotvm.def_memory_size){
 		uint8_t *old_mem = kotvm.memory;
 		kotvm.memory = (uint8_t*)arena_alloc(ah, sizeof(uint8_t)*kotvm.def_memory_size*2);

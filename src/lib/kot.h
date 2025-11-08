@@ -185,50 +185,54 @@ static fn_signature* globl_fn_signature;
 static size_t globl_fn_signature_tracker;
 static size_t globl_fn_signature_size;
 
-void kot_init_vm(Arena_header*ah);
-void kot_init_interpreter(Arena_header* ah);
+static Arena_header  *ah;
+static lxer_header   *lh;
+static error_handler *eh;
 
-void kot_push_globl_variable_def(Arena_header* ah,char* name, KOT_TYPE type, int32_t pos);
+void kot_init_vm();
+void kot_init_interpreter(Arena_header* arena, lxer_header* lxer, error_handler* error);
+
+void kot_push_globl_variable_def(char* name, KOT_TYPE type, int32_t pos);
 bool kot_globl_variable_already_present(char* name);
 
-void kot_push_variable_def(Arena_header* ah,char* name, KOT_TYPE type, int32_t pos);
+void kot_push_variable_def(char* name, KOT_TYPE type, int32_t pos);
 bool kot_variable_already_present(char* name);
 KOT_TYPE kot_globl_var_get_type(char* name);
 KOT_TYPE kot_var_get_type(char* name);
 fn_signature* kot_fn_get_signature(char* name);
 
-void kot_push_fn_dec(Arena_header* ah, fn_signature fn);
+void kot_push_fn_dec(fn_signature fn);
 bool kot_fn_already_declared(char* name);
-fn_signature* kot_define_fn(Arena_header* ah,char* name,int param_len, KOT_TYPE* param_type, scope* fn_scope);
+fn_signature* kot_define_fn(char* name,int param_len, KOT_TYPE* param_type, scope* fn_scope);
 inst_slice kot_get_current_inst();
 void kot_pc_inc();
-bool kot_link_function(Arena_header* ah, fn_signature *fn, __ffi_linker_callback fn_call);
+bool kot_link_function(fn_signature *fn, __ffi_linker_callback fn_call);
 scope* kot_fn_get_scope(char* name);
 
-int kot_parse(Arena_header* ah,lxer_header* lh, error_handler *eh, bool console);
+int kot_parse(bool console);
 
 void kot_run();
 bool kot_single_run(inst_slice inst);
-void kot_scope_writedown(Arena_header* ah, scope* s);
-void kot_scope_list_writedown(Arena_header* ah, List_header* lh, size_t* offset);
+void kot_scope_writedown(scope* s);
+void kot_scope_list_writedown(List_header* lh, size_t* offset);
 
-int kot_type_dispatch(Arena_header* ah, lxer_header* lh, error_handler *eh);
-int kot_variable_argument_processor(Arena_header * ah, lxer_header* lh, error_handler *eh, char*name, LXR_TOKENS type);
-int kot_function_processor(Arena_header* ah, lxer_header* lh, error_handler* eh,char*name, LXR_TOKENS type);
-int kot_statement_dispatch(Arena_header* ah, lxer_header* lh, error_handler *eh);
-int kot_fcall_processor(Arena_header* ah, lxer_header* lh, error_handler *eh);
-
+int kot_type_dispatch();
+int kot_variable_argument_processor(char*name, LXR_TOKENS type);
+int kot_function_processor(char*name, LXR_TOKENS type);
+int kot_statement_dispatch();
+int kot_fcall_processor();
+int kot_variable_allocator(char** var_list, int var_list_tracker, uint32_t ass_0, uint32_t ass_1, KOT_TYPE type, int status);
 	
 void kot_set_line(size_t line);
 KOT_TYPE kot_get_type_from_token(LXR_TOKENS token);
 int kot_get_size_from_type(KOT_TYPE type);
 
-float kot_process_float_literal(lxer_header* lh);
+float kot_process_float_literal();
 
 void kot_push_stack(uint8_t* data, int size);
-uint8_t* kot_pull_stack(Arena_header* ah,int size);
-uint8_t* kot_get_stack(Arena_header* ah, int size);
-size_t kot_write_heap(Arena_header* ah,uint8_t* data, int size);
+uint8_t* kot_pull_stack(int size);
+uint8_t* kot_get_stack(int size);
+size_t kot_write_heap(uint8_t* data, int size);
 
 // note about kot_alloc_stack(int size)
 /*
@@ -252,7 +256,7 @@ uint32_t kot_pull_return_ptr();
 
 void kot_get_bytecode();
 void kot_get_memory_dump();
-void kot_push_instruction(Arena_header* ah, kot_ir inst, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2);
+void kot_push_instruction(kot_ir inst, uint32_t arg_0, uint32_t arg_1, uint32_t arg_2);
 void kot_get_program_list(FILE* filestream);
 
 #define KOT_R_I int 
